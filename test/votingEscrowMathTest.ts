@@ -129,7 +129,7 @@ describe("VotingEscrow Math test", () => {
       "veFDT",
       "veFDT"
     );
-
+    await blocklist.updateVE(votingLockup.address);
     await fdtMock.approve(
       votingLockup.address,
       simpleToExactAmount(100, DEFAULT_DECIMALS)

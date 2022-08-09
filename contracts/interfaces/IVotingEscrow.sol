@@ -58,4 +58,9 @@ interface IVotingEscrow {
         external
         view
         returns (uint256);
+
+    /// @notice Remove delegation for blocked contract.
+    /// @param _addr user to which voting power is delegated
+    /// @dev Only callable by the blocklist contract
+    function forceUndelegate(address _addr) external;
 }

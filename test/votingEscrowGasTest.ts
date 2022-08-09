@@ -115,7 +115,7 @@ describe("Gas usage tests", () => {
       "veFDT",
       "veFDT"
     );
-
+    await blocklist.updateVE(votingLockup.address);
     await fdtMock.approve(
       votingLockup.address,
       simpleToExactAmount(100, DEFAULT_DECIMALS)

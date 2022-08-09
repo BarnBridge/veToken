@@ -87,6 +87,7 @@ describe("VotingEscrow Tests", function () {
       "veFDT"
     );
 
+    await blocklist.updateVE(ve.address);
     // approve VE contract on FDT
     await fdtMock.setAllowance(alice.address, ve.address, MAX);
     await fdtMock.setAllowance(bob.address, ve.address, MAX);
@@ -334,7 +335,90 @@ describe("VotingEscrow Tests", function () {
     });
   });
 
-  // TODO: review this
+  describe("Blocked contracts undelegation", async () => {
+    it("2contracts lock FDT in ve", async () => {
+      await createSnapshot(provider);
+
+      const lockTime = 4 * WEEK + (await getTimestamp());
+      const lockTime2 = 2 * WEEK + (await getTimestamp());
+      // contract 1
+      await contract.createLock(ve.address, lockAmount, lockTime);
+      expect(await ve.balanceOf(contract.address)).not.eq(0);
+      expect(await ve.balanceOfAt(contract.address, await getBlock())).not.eq(
+        0
+      );
+
+      // contract 2
+      await contract2.createLock(ve.address, lockAmount, lockTime);
+      expect(await ve.balanceOf(contract2.address)).not.eq(0);
+      expect(await ve.balanceOfAt(contract2.address, await getBlock())).not.eq(
+        0
+      );
+    });
+
+    it("Admin blocklists malicious contracts, its voting power is still available ", async () => {
+      await blocklist.block(contract.address);
+      expect(await blocklist.isBlocked(contract.address)).to.equal(true);
+
+      // contract 2 delegates first
+      await contract2.delegate(ve.address, contract.address);
+      await blocklist.block(contract2.address);
+    });
+
+    it("Blocklisted contract CANNOT increase amount of tokens", async () => {
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+
+      await expect(
+        contract.increaseAmount(ve.address, lockAmount)
+      ).to.be.revertedWith("Blocked contract");
+
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+    });
+
+    it("Blocklisted contract CANNOT increase locked time", async () => {
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+
+      await expect(
+        contract.increaseUnlockTime(
+          ve.address,
+          (await getTimestamp()) + 10 * WEEK
+        )
+      ).to.be.revertedWith("Blocked contract");
+
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+    });
+
+    it("Blocklisted contract can quit lock", async () => {
+      await increaseTime(ONE_WEEK);
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+
+      await contract.quitLock(ve.address);
+
+      assertBNClosePercent(
+        await fdtMock.balanceOf(contract.address),
+        initialFDTuserBal.sub(lockAmount.mul(2 * WEEK).div(MAXTIME)),
+        "0.5"
+      );
+    });
+    it("Blocked contracts can withdraw", async () => {
+      await increaseTime(ONE_WEEK.mul(10));
+      // blocked contract can still
+      await contract2.withdraw(ve.address);
+
+      await restoreSnapshot(provider);
+    });
+  });
+
   describe("Delegation flow", async () => {
     it("Alice creates a lock", async () => {
       await createSnapshot(provider);

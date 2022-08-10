@@ -16,16 +16,6 @@ contract Blocklist {
         ve = _ve;
     }
 
-    /// @notice Update Voting Escrow Contract Address
-    /// @dev only callable by owner.
-    /// @dev Allows updating VE address
-    /// @param addr The ve contract address
-    function updateVE(address addr) external {
-        require(msg.sender == manager, "Only manager");
-        require(_isContract(addr), "Only contracts");
-        ve = addr;
-    }
-
     /// @notice Add address to blocklist
     /// @dev only callable by owner.
     /// @dev Allows blocklisting only of smart contracts

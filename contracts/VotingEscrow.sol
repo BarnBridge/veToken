@@ -557,9 +557,15 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
     // See IVotingEscrow for documentation
-    function delegate(address _addr) external override nonReentrant {
+    function delegate(address _addr)
+        external
+        override
+        nonReentrant
+        checkBlocklist
+    {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
+        require(!IBlocklist(blocklist).isBlocked(_addr), "Blocked contract");
         require(locked_.amount > 0, "No lock");
         require(locked_.delegatee != _addr, "Already delegated");
         // Update locks
@@ -569,10 +575,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         LockedBalance memory toLocked;
         locked_.delegatee = _addr;
         if (delegatee == msg.sender) {
-            require(
-                !IBlocklist(blocklist).isBlocked(msg.sender),
-                "Blocked contract"
-            );
             // Delegate
             fromLocked = locked_;
             toLocked = locked[_addr];
@@ -581,10 +583,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             fromLocked = locked[delegatee];
             toLocked = locked_;
         } else {
-            require(
-                !IBlocklist(blocklist).isBlocked(msg.sender),
-                "Blocked contract"
-            );
             // Re-delegate
             fromLocked = locked[delegatee];
             toLocked = locked[_addr];

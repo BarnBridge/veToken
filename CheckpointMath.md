@@ -13,16 +13,7 @@ Action details:
 
 | Action | require | update | checkpoint |
 | --- | --- | --- | --- |
-| createLock
-V:=value
-T:=unlockTime | V>0
-owner.amount==0
-T>owner.end
-T>block.t
-T≤block.t+MAXTIME | owner.amount=V
-owner.end=T
-owner.delegated+=V
-owner.delegatee=msg.sender | msg.sender |
+| createLock<br>V:=value<br>T:=unlockTime | V>0<br>owner.amount==0<br>T>owner.end<br>T>block.t<br>T≤block.t+MAXTIME | owner.amount=V<br>owner.end=T<br>owner.delegated+=V<br>owner.delegatee=msg.sender | msg.sender |
 
 Checkpoint details:
 
@@ -45,14 +36,7 @@ Action details:
 
 | Action | require | update | checkpoint |
 | --- | --- | --- | --- |
-| increaseAmount
-V:=value | V>0
-owner.amount>0
-owner.end>block.t
-delegatee.amount>0
-delegatee.end>block.t | owner.amount+=V
-delegatee.delegated+=V
- | owner.delegatee |
+| increaseAmount<br>V:=value | V>0<br>owner.amount>0<br>owner.end>block.t<br>delegatee.amount>0<br>delegatee.end>block.t | owner.amount+=V<br>delegatee.delegated+=V | owner.delegatee |
 
 Checkpoint details:
 
@@ -71,11 +55,7 @@ Action details:
 
 | Action | require | update | checkpoint |
 | --- | --- | --- | --- |
-| increaseUnlockTime
-T:=unlockTime | owner.amount>0
-if(owner.delegatee==msg.sender) owner.end>block.t
-T>owner.end
-T≤block.t+MAXTIME | owner.end=T | if(owner.delegatee==msg.sender) msg.sender |
+| increaseUnlockTime<br>T:=unlockTime | owner.amount>0<br>if(owner.delegatee==msg.sender)owner.end>block.t<br>T>owner.end<br>T≤block.t+MAXTIME | owner.end=T | if(owner.delegatee==msg.sender) msg.sender |
 
 Checkpoint details:
 
@@ -95,13 +75,7 @@ Action details:
 
 | Action | require | update | checkpoint |
 | --- | --- | --- | --- |
-| withdraw | owner.delegatee==msg.sender
-owner.amount>0
-owner.end≤block.t
- | owner.amount=0
-owner.end=0
-owner.delegated-=owner.amount
-owner.delegatee=address(0) | msg.sender |
+| withdraw | owner.delegatee==msg.sender<br>owner.amount>0<br>owner.end≤block.t| owner.amount=0<br>owner.end=0<br>owner.delegated-=owner.amount<br>owner.delegatee=address(0) | msg.sender |
 
 Checkpoint details:
 
@@ -124,11 +98,7 @@ Action details:
 
 | Action | require | update | checkpoint |
 | --- | --- | --- | --- |
-| quitLock | owner.amount>0
-owner.end>block.t
-owner.delegatee==msg.sender | owner.amount=0
-owner.delegated-=owner.amount
-owner.delegatee=address(0) | msg.sender |
+| quitLock | owner.amount>0<br>owner.end>block.t<br>owner.delegatee==msg.sender | owner.amount=0<br>owner.delegated-=owner.amount<br>owner.delegatee=address(0) | msg.sender |
 
 Checkpoint details:
 
@@ -159,15 +129,7 @@ Action details:
 
 | Action | require | update | checkpoint |
 | --- | --- | --- | --- |
-| delegate
-D:=new delegatee | owner.amount>0
-owner.delegatee≠D
-to.amount>0
-to.end>block.t
-to.end > from.end | owner.delegatee=D
-from.delegated-=owner.amount
-to.delegated+=owner.amount | if(from.amount>0) { from }
-D
+| delegate<br>D:=new delegatee | owner.amount>0<br>owner.delegatee≠D<br>to.amount>0<br>to.end>block.t<br>to.end > from.end | owner.delegatee=D<br>from.delegated-=owner.amount<br>to.delegated+=owner.amount | if(from.amount>0) { from }<br>D
  |
 
 Checkpoint details:

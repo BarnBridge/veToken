@@ -11,8 +11,9 @@ contract Blocklist {
     address public manager;
     address public ve;
 
-    constructor(address _manager) {
+    constructor(address _manager, address _ve) {
         manager = _manager;
+        ve = _ve;
     }
 
     /// @notice Update Voting Escrow Contract Address

@@ -70,25 +70,26 @@ describe("VotingEscrow Tests", function () {
     await fdtMock.mint(david.address, initialFDTuserBal);
     await fdtMock.mint(eve.address, initialFDTuserBal);
 
-    // Deploy Blocklist
-    const blocklistDeployer = await ethers.getContractFactory(
-      "Blocklist",
-      admin
-    );
-    blocklist = await blocklistDeployer.deploy(admin.address);
-
     // Deploy VE contract
     const veDeployer = await ethers.getContractFactory("VotingEscrow", admin);
     ve = await veDeployer.deploy(
       admin.address,
       treasury.address,
       fdtMock.address,
-      blocklist.address,
       "veFDT",
       "veFDT"
     );
 
-    await blocklist.updateVE(ve.address);
+    // Deploy Blocklist
+    const blocklistDeployer = await ethers.getContractFactory(
+      "Blocklist",
+      admin
+    );
+
+    blocklist = await blocklistDeployer.deploy(admin.address, ve.address);
+
+    //add Blocklist address to VotingEscrow
+    await ve.updateBlocklist(blocklist.address);
     // approve VE contract on FDT
     await fdtMock.setAllowance(alice.address, ve.address, MAX);
     await fdtMock.setAllowance(bob.address, ve.address, MAX);

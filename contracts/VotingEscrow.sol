@@ -95,14 +95,12 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     /// @param _owner The owner is able to update `owner`, `penaltyRecipient` and `penaltyRate`
     /// @param _penaltyRecipient The recipient of penalty paid by lock quitters
     /// @param _token The token locked in order to obtain voting power
-    /// @param _blocklist The blocklist contract address
     /// @param _name The name of the voting token
     /// @param _symbol The symbol of the voting token
     constructor(
         address _owner,
         address _penaltyRecipient,
         address _token,
-        address _blocklist,
         string memory _name,
         string memory _symbol
     ) {
@@ -121,7 +119,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         symbol = _symbol;
         owner = _owner;
         penaltyRecipient = _penaltyRecipient;
-        blocklist = _blocklist;
     }
 
     modifier checkBlocklist() {

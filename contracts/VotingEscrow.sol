@@ -164,23 +164,21 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         emit Unlock();
     }
 
-    /// @notice Removes
+    /// @notice Forces an undelegation of virtual balance for a blocked locker
+    /// @dev Can only be called by the Blocklist contract (as part of a block)
     /// @dev This is an irreversible action
     function forceUndelegate(address _addr) external override {
         require(msg.sender == blocklist, "Only Blocklist");
         LockedBalance memory locked_ = locked[_addr];
         address delegatee = locked_.delegatee;
+        int128 value = locked_.amount;
 
-        if (delegatee != _addr) {
-            int128 value = locked_.amount;
+        if (delegatee != _addr && value > 0) {
             LockedBalance memory fromLocked;
-            LockedBalance memory toLocked;
             locked_.delegatee = _addr;
             fromLocked = locked[delegatee];
-            toLocked = locked_;
-            //  require(toLocked.amount > 0, "Delegatee has no lock");
             _delegate(delegatee, fromLocked, value, LockAction.UNDELEGATE);
-            _delegate(_addr, toLocked, value, LockAction.DELEGATE);
+            _delegate(_addr, locked_, value, LockAction.DELEGATE);
         }
     }
 

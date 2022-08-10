@@ -25,6 +25,7 @@ describe("VotingEscrow Tests", function () {
   let fdtMock: MockERC20;
   let contract: MockSmartWallet;
   let contract2: MockSmartWallet; // ADD TEST FOR 0 BALANCES
+  let contract3: MockSmartWallet;
   let admin: SignerWithAddress;
   let treasury: SignerWithAddress;
   const maxPenalty = utils.parseEther("1");
@@ -69,24 +70,26 @@ describe("VotingEscrow Tests", function () {
     await fdtMock.mint(david.address, initialFDTuserBal);
     await fdtMock.mint(eve.address, initialFDTuserBal);
 
-    // Deploy Blocklist
-    const blocklistDeployer = await ethers.getContractFactory(
-      "Blocklist",
-      admin
-    );
-    blocklist = await blocklistDeployer.deploy(admin.address);
-
     // Deploy VE contract
     const veDeployer = await ethers.getContractFactory("VotingEscrow", admin);
     ve = await veDeployer.deploy(
       admin.address,
       treasury.address,
       fdtMock.address,
-      blocklist.address,
       "veFDT",
       "veFDT"
     );
 
+    // Deploy Blocklist
+    const blocklistDeployer = await ethers.getContractFactory(
+      "Blocklist",
+      admin
+    );
+
+    blocklist = await blocklistDeployer.deploy(admin.address, ve.address);
+
+    //add Blocklist address to VotingEscrow
+    await ve.updateBlocklist(blocklist.address);
     // approve VE contract on FDT
     await fdtMock.setAllowance(alice.address, ve.address, MAX);
     await fdtMock.setAllowance(bob.address, ve.address, MAX);
@@ -104,6 +107,9 @@ describe("VotingEscrow Tests", function () {
 
     contract2 = await contractDeployer.deploy(fdtMock.address);
     await fdtMock.mint(contract2.address, initialFDTuserBal);
+
+    contract3 = await contractDeployer.deploy(fdtMock.address);
+    await fdtMock.mint(contract3.address, initialFDTuserBal);
   });
   after(async () => {
     await restoreSnapshot(provider);
@@ -334,7 +340,131 @@ describe("VotingEscrow Tests", function () {
     });
   });
 
-  // TODO: review this
+  describe("Blocked contracts undelegation", async () => {
+    it("2contracts lock FDT in ve", async () => {
+      await createSnapshot(provider);
+
+      const lockTime = 4 * WEEK + (await getTimestamp());
+      const lockTime2 = 2 * WEEK + (await getTimestamp());
+      // contract 1
+      await contract.createLock(ve.address, lockAmount, lockTime);
+      expect(await ve.balanceOf(contract.address)).not.eq(0);
+      expect(await ve.balanceOfAt(contract.address, await getBlock())).not.eq(
+        0
+      );
+
+      // contract 2
+      await contract2.createLock(ve.address, lockAmount, lockTime);
+      expect(await ve.balanceOf(contract2.address)).not.eq(0);
+      expect(await ve.balanceOfAt(contract2.address, await getBlock())).not.eq(
+        0
+      );
+      // contract 3
+      await contract3.createLock(ve.address, lockAmount, lockTime);
+      expect(await ve.balanceOf(contract3.address)).not.eq(0);
+      expect(await ve.balanceOfAt(contract3.address, await getBlock())).not.eq(
+        0
+      );
+    });
+
+    it("Admin blocklists malicious contracts", async () => {
+      // contract 2 delegates first
+      await contract2.delegate(ve.address, contract.address);
+      await blocklist.block(contract2.address);
+    });
+
+    it("Blocked contract gets UNDELEGATED", async () => {
+      await contract.delegate(ve.address, contract3.address);
+      expect((await ve.locked(contract.address)).delegatee).to.equal(
+        contract3.address
+      );
+      await blocklist.block(contract.address);
+      expect((await ve.locked(contract.address)).delegatee).to.equal(
+        contract.address
+      );
+    });
+
+    it("CANNOT delegate to a blocked Contract", async () => {
+      // contract 3  cannot delegate to contract
+      await expect(
+        contract3.delegate(ve.address, contract.address)
+      ).to.be.revertedWith("Blocked contract");
+      await blocklist.block(contract2.address);
+    });
+
+    it("Blocked contract CANNOT delegate to another user", async () => {
+      //contract 3 is not blocked
+      expect(await blocklist.isBlocked(contract3.address)).to.equal(false);
+      // contract 1 is blocked
+      await expect(
+        contract.delegate(ve.address, contract3.address)
+      ).to.be.revertedWith("Blocked contract");
+    });
+
+    it("Blocked contract is already undelegated", async () => {
+      expect((await ve.locked(contract.address)).delegatee).to.equal(
+        contract.address
+      );
+      // contract 1 is blocked
+      await expect(
+        contract.delegate(ve.address, contract.address)
+      ).to.be.revertedWith("Blocked contract");
+    });
+
+    it("Blocklisted contract CANNOT increase amount of tokens", async () => {
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+
+      await expect(
+        contract.increaseAmount(ve.address, lockAmount)
+      ).to.be.revertedWith("Blocked contract");
+
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+    });
+
+    it("Blocklisted contract CANNOT increase locked time", async () => {
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+
+      await expect(
+        contract.increaseUnlockTime(
+          ve.address,
+          (await getTimestamp()) + 10 * WEEK
+        )
+      ).to.be.revertedWith("Blocked contract");
+
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+    });
+
+    it("Blocklisted contract can quit lock", async () => {
+      await increaseTime(ONE_WEEK);
+      expect(await fdtMock.balanceOf(contract.address)).to.equal(
+        initialFDTuserBal.sub(lockAmount)
+      );
+
+      await contract.quitLock(ve.address);
+
+      assertBNClosePercent(
+        await fdtMock.balanceOf(contract.address),
+        initialFDTuserBal.sub(lockAmount.mul(2 * WEEK).div(MAXTIME)),
+        "0.5"
+      );
+    });
+    it("Blocked contracts can withdraw", async () => {
+      await increaseTime(ONE_WEEK.mul(10));
+      // blocked contract can still
+      await contract2.withdraw(ve.address);
+
+      await restoreSnapshot(provider);
+    });
+  });
+
   describe("Delegation flow", async () => {
     it("Alice creates a lock", async () => {
       await createSnapshot(provider);

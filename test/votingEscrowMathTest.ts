@@ -111,12 +111,6 @@ describe("VotingEscrow Math test", () => {
       .connect(fundManager)
       .transfer(other.address, simpleToExactAmount(1000, DEFAULT_DECIMALS));
 
-    // Deploy Blocklist
-    const blocklistDeployer = await ethers.getContractFactory(
-      "Blocklist",
-      admin
-    );
-    blocklist = await blocklistDeployer.deploy(admin.address);
     const votingEscrowDeployer = await ethers.getContractFactory(
       "VotingEscrow",
       admin
@@ -125,10 +119,22 @@ describe("VotingEscrow Math test", () => {
       admin.address,
       treasury.address,
       fdtMock.address,
-      blocklist.address,
       "veFDT",
       "veFDT"
     );
+    // Deploy Blocklist
+    const blocklistDeployer = await ethers.getContractFactory(
+      "Blocklist",
+      admin
+    );
+
+    blocklist = await blocklistDeployer.deploy(
+      admin.address,
+      votingLockup.address
+    );
+
+    //add Blocklist address to VotingEscrow
+    await votingLockup.updateBlocklist(blocklist.address);
 
     await fdtMock.approve(
       votingLockup.address,

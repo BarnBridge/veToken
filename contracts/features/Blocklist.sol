@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.3;
 
+import { IVotingEscrow } from "../interfaces/IVotingEscrow.sol";
+
 /// @title Blocklist Checker implementation.
 /// @notice Checks if an address is blocklisted
 /// @dev This is a basic implementation using a mapping for address => bool
 contract Blocklist {
     mapping(address => bool) private _blocklist;
     address public manager;
+    address public ve;
 
-    constructor(address _manager) {
+    constructor(address _manager, address _ve) {
         manager = _manager;
+        ve = _ve;
     }
 
     /// @notice Add address to blocklist
@@ -20,6 +24,7 @@ contract Blocklist {
         require(msg.sender == manager, "Only manager");
         require(_isContract(addr), "Only contracts");
         _blocklist[addr] = true;
+        IVotingEscrow(ve).forceUndelegate(addr);
     }
 
     /// @notice Check an address

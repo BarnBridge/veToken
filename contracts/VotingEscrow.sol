@@ -95,14 +95,12 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     /// @param _owner The owner is able to update `owner`, `penaltyRecipient` and `penaltyRate`
     /// @param _penaltyRecipient The recipient of penalty paid by lock quitters
     /// @param _token The token locked in order to obtain voting power
-    /// @param _blocklist The blocklist contract address
     /// @param _name The name of the voting token
     /// @param _symbol The symbol of the voting token
     constructor(
         address _owner,
         address _penaltyRecipient,
         address _token,
-        address _blocklist,
         string memory _name,
         string memory _symbol
     ) {
@@ -121,7 +119,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         symbol = _symbol;
         owner = _owner;
         penaltyRecipient = _penaltyRecipient;
-        blocklist = _blocklist;
     }
 
     modifier checkBlocklist() {
@@ -165,6 +162,24 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(msg.sender == owner, "Only owner");
         maxPenalty = 0;
         emit Unlock();
+    }
+
+    /// @notice Forces an undelegation of virtual balance for a blocked locker
+    /// @dev Can only be called by the Blocklist contract (as part of a block)
+    /// @dev This is an irreversible action
+    function forceUndelegate(address _addr) external override {
+        require(msg.sender == blocklist, "Only Blocklist");
+        LockedBalance memory locked_ = locked[_addr];
+        address delegatee = locked_.delegatee;
+        int128 value = locked_.amount;
+
+        if (delegatee != _addr && value > 0) {
+            LockedBalance memory fromLocked;
+            locked_.delegatee = _addr;
+            fromLocked = locked[delegatee];
+            _delegate(delegatee, fromLocked, value, LockAction.UNDELEGATE);
+            _delegate(_addr, locked_, value, LockAction.DELEGATE);
+        }
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
@@ -537,9 +552,15 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
     // See IVotingEscrow for documentation
-    function delegate(address _addr) external override nonReentrant {
+    function delegate(address _addr)
+        external
+        override
+        nonReentrant
+        checkBlocklist
+    {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
+        require(!IBlocklist(blocklist).isBlocked(_addr), "Blocked contract");
         require(locked_.amount > 0, "No lock");
         require(locked_.delegatee != _addr, "Already delegated");
         // Update locks
@@ -549,10 +570,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         LockedBalance memory toLocked;
         locked_.delegatee = _addr;
         if (delegatee == msg.sender) {
-            require(
-                !IBlocklist(blocklist).isBlocked(msg.sender),
-                "Blocked contract"
-            );
             // Delegate
             fromLocked = locked_;
             toLocked = locked[_addr];
@@ -561,10 +578,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             fromLocked = locked[delegatee];
             toLocked = locked_;
         } else {
-            require(
-                !IBlocklist(blocklist).isBlocked(msg.sender),
-                "Blocked contract"
-            );
             // Re-delegate
             fromLocked = locked[delegatee];
             toLocked = locked[_addr];

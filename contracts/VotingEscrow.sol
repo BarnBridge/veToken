@@ -506,7 +506,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         uint256 oldUnlockTime = locked_.end;
         locked_.end = unlock_time;
         locked[msg.sender] = locked_;
-        if (locked_.delegatee == msg.sender) {
+        if (locked_.delegated > 0) {
             // Undelegated lock
             require(oldUnlockTime > block.timestamp, "Lock expired");
             LockedBalance memory oldLocked = _copyLock(locked_);

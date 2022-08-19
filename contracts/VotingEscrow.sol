@@ -254,9 +254,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             // start {
             // Now handle user history
             uint256 uEpoch = userPointEpoch[_addr];
-            if (uEpoch == 0) {
-                userPointHistory[_addr][uEpoch + 1] = userOldPoint;
-            }
 
             userPointEpoch[_addr] = uEpoch + 1;
             userNewPoint.ts = block.timestamp;

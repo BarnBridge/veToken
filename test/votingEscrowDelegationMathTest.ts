@@ -737,6 +737,16 @@ describe("VotingEscrow Delegation Math test", () => {
             "0.4"
           );
 
+          // Eve lock has expired, she first has to increase her lock time
+          await expect(
+            votingLockup.connect(eve).delegate(alice.address)
+          ).to.be.revertedWith("Lock expired");
+
+          // Eve has to increase her expired lock before delegating
+          await votingLockup
+            .connect(eve)
+            .increaseUnlockTime((await getTimestamp()).add(ONE_YEAR));
+
           await expect(
             votingLockup.connect(eve).delegate(alice.address)
           ).to.be.revertedWith("Only delegate to longer lock");
@@ -789,7 +799,7 @@ describe("VotingEscrow Delegation Math test", () => {
 
           await expect(
             votingLockup.connect(david).delegate(david.address)
-          ).to.be.revertedWith("Delegatee lock expired");
+          ).to.be.revertedWith("Lock expired");
         });
 
         it("David increases lock beyond timestamp, then succeeds undelegate but fails to withdraw", async () => {
@@ -901,7 +911,7 @@ describe("VotingEscrow Delegation Math test", () => {
           // Now that Alice has re-opened the lock, Eve has to wait again (she also need to undelegate first, which fails)
           await expect(
             votingLockup.connect(eve).delegate(eve.address)
-          ).to.be.revertedWith("Delegatee lock expired");
+          ).to.be.revertedWith("Lock expired");
 
           // She increases her unlock time to undelegate
           await votingLockup
@@ -944,10 +954,10 @@ describe("VotingEscrow Delegation Math test", () => {
         });
 
         it("David has delegated to an expired lock, he can undelegate and withdraw", async () => {
-          // Alice lock has expired, David can undelegate but has to increasing lock time first
+          // Alice and David lock have expired, David can undelegate but has to increase lock time first
           await expect(
             votingLockup.connect(david).delegate(david.address)
-          ).to.be.revertedWith("Delegatee lock expired");
+          ).to.be.revertedWith("Lock expired");
 
           await votingLockup
             .connect(david)

@@ -563,6 +563,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(!IBlocklist(blocklist).isBlocked(_addr), "Blocked contract");
         require(locked_.amount > 0, "No lock");
         require(locked_.delegatee != _addr, "Already delegated");
+        require(locked_.end > block.timestamp, "Lock expired");
         // Update locks
         int128 value = locked_.amount;
         address delegatee = locked_.delegatee;

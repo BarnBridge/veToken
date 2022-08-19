@@ -510,7 +510,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             // Undelegated lock
             require(oldUnlockTime > block.timestamp, "Lock expired");
             LockedBalance memory oldLocked = _copyLock(locked_);
-            oldLocked.end = unlock_time;
+            oldLocked.end = oldUnlockTime;
             _checkpoint(msg.sender, oldLocked, locked_);
         }
         emit Deposit(

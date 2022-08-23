@@ -792,10 +792,14 @@ describe("VotingEscrow Delegation Math test", () => {
           ).to.be.revertedWith("Delegatee lock expired");
         });
 
-        it("David increases lock beyond timestamp, then succeeds undelegate but fails to withdraw", async () => {
-          await votingLockup
-            .connect(david)
-            .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK));
+        it("David fails to increases lock beyond timestamp, also fails to undelegate but fails to withdraw", async () => {
+          await expect(
+            votingLockup
+              .connect(david)
+              .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK))
+          ).to.be.revertedWith(
+            "Delegatee lock expired, use undelegate and withdraw"
+          );
 
           // SCENARIO: David delegates to Alice
 
@@ -819,12 +823,16 @@ describe("VotingEscrow Delegation Math test", () => {
           // Allow to undelegate if delegatee's lock has expired
 
           // David undelegates first
-          await votingLockup.connect(david).delegate(david.address);
+          await expect(
+            votingLockup.connect(david).delegate(david.address)
+          ).to.be.revertedWith(
+            "Delegatee lock expired, use undelegate and withdraw"
+          );
 
           // David tries to withdraw
           await expect(
             votingLockup.connect(david).withdraw()
-          ).to.be.revertedWith("Lock not expired");
+          ).to.be.revertedWith("Lock delegated");
         });
 
         it("David's lock expires, then succeeds to withdraw", async () => {
@@ -833,6 +841,7 @@ describe("VotingEscrow Delegation Math test", () => {
 
           // David withdraws
           const davidBalBefore = await fdtMock.balanceOf(david.address);
+          await votingLockup.connect(david).undelegate();
           await votingLockup.connect(david).withdraw();
 
           // David got back his tokens
@@ -944,20 +953,33 @@ describe("VotingEscrow Delegation Math test", () => {
         });
 
         it("David has delegated to an expired lock, he can undelegate and withdraw", async () => {
-          // Alice lock has expired, David can undelegate but has to increasing lock time first
+          // Alice lock has expired, David cannot increase his unlock time but can undelegate and withdraw
           await expect(
             votingLockup.connect(david).delegate(david.address)
           ).to.be.revertedWith("Delegatee lock expired");
 
-          await votingLockup
-            .connect(david)
-            .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK));
-          await votingLockup.connect(david).delegate(david.address);
+          await expect(
+            votingLockup
+              .connect(david)
+              .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK))
+          ).to.be.revertedWith(
+            "Delegatee lock expired, use undelegate and withdraw"
+          );
+          await expect(
+            votingLockup.connect(david).delegate(david.address)
+          ).to.be.revertedWith(
+            "Delegatee lock expired, use undelegate and withdraw"
+          );
 
           await increaseTime(ONE_WEEK);
 
           const davidBalBefore = await fdtMock.balanceOf(david.address);
 
+          await expect(
+            votingLockup.connect(david).withdraw()
+          ).to.be.revertedWith("Lock delegated");
+
+          await votingLockup.connect(david).undelegate();
           await votingLockup.connect(david).withdraw();
 
           // david got back his tokens
@@ -980,11 +1002,20 @@ describe("VotingEscrow Delegation Math test", () => {
           );
 
           // Other users also withdraws, all their lock expired
-          await votingLockup
-            .connect(charlie)
-            .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK));
-          await votingLockup.connect(charlie).delegate(charlie.address);
-          await increaseTime(ONE_WEEK);
+          await expect(
+            votingLockup
+              .connect(charlie)
+              .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK))
+          ).to.be.revertedWith(
+            "Delegatee lock expired, use undelegate and withdraw"
+          );
+          await expect(
+            votingLockup.connect(charlie).delegate(charlie.address)
+          ).to.be.revertedWith(
+            "Delegatee lock expired, use undelegate and withdraw"
+          );
+
+          await votingLockup.connect(charlie).undelegate();
           await votingLockup.connect(charlie).withdraw();
 
           await votingLockup.connect(bob).withdraw();
@@ -1240,22 +1271,18 @@ describe("VotingEscrow Delegation Math test", () => {
           // Lock has expired totalSupply is ZERO
           expect(await votingLockup.totalSupply()).to.equal(0);
 
-          // Bob withdraws before Alice(delegatee), after he has increased his lock
-          await votingLockup
-            .connect(bob)
-            .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK));
-          await votingLockup.connect(bob).delegate(bob.address);
-          await increaseTime(ONE_WEEK);
+          // Bob withdraws before Alice(delegatee)
+
+          await votingLockup.connect(bob).undelegate();
+
           await votingLockup.connect(bob).withdraw();
 
           await votingLockup.connect(alice).withdraw();
 
-          // Charlie withdraws after Alice(delegatee), sill has to increase his lock first
-          await votingLockup
-            .connect(charlie)
-            .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK));
-          await votingLockup.connect(charlie).delegate(charlie.address);
-          await increaseTime(ONE_WEEK);
+          // Charlie withdraws after Alice(delegatee)
+
+          await votingLockup.connect(charlie).undelegate();
+
           await votingLockup.connect(charlie).withdraw();
         });
       });

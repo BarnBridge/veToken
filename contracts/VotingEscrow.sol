@@ -45,10 +45,10 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     IERC20 public immutable token;
     uint256 public constant WEEK = 7 days;
     uint256 public constant MAXTIME = 365 days;
-    uint256 public constant MULTIPLIER = 10**18;
+    uint256 public constant MULTIPLIER = 1e18;
     address public owner;
     address public penaltyRecipient; // receives collected penalty payments
-    uint256 public maxPenalty = 10**18; // penalty for quitters with MAXTIME remaining lock
+    uint256 public maxPenalty = 1e18; // penalty for quitters with MAXTIME remaining lock
     uint256 public penaltyAccumulated; // accumulated and unwithdrawn penalty payments
     address public blocklist;
 
@@ -298,7 +298,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
 
         // Go over weeks to fill history and calculate what the current point is
         uint256 iterativeTime = _floorToWeek(lastCheckpoint);
-        for (uint256 i = 0; i < 255; ++i) {
+        for (uint256 i; i < 255; ) {
             // Hopefully it won't happen that this won't get used in 5 years!
             // If it does, users will be able to withdraw but vote weight will be broken
             iterativeTime = iterativeTime + WEEK;
@@ -336,6 +336,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             } else {
                 pointHistory[epoch] = lastPoint;
             }
+            unchecked { ++i; }
         }
 
         globalEpoch = epoch;
@@ -642,7 +643,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         _checkpoint(msg.sender, locked_, newLocked);
         // apply penalty
         uint256 penaltyRate = _calculatePenaltyRate(locked_.end);
-        uint256 penaltyAmount = (value * penaltyRate) / 10**18; // quitlock_penalty is in 18 decimals precision
+        uint256 penaltyAmount = (value * penaltyRate) / 1e18; // quitlock_penalty is in 18 decimals precision
         penaltyAccumulated = penaltyAccumulated + penaltyAmount;
         uint256 remainingAmount = value - penaltyAmount;
         // Send back remaining tokens
@@ -707,7 +708,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         uint256 min = 0;
         uint256 max = _maxEpoch;
         // Will be always enough for 128-bit numbers
-        for (uint256 i = 0; i < 128; ++i) {
+        for (uint256 i; i < 128; ) {
             if (min >= max) break;
             uint256 mid = (min + max + 1) / 2;
             if (pointHistory[mid].blk <= _block) {
@@ -715,6 +716,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             } else {
                 max = mid - 1;
             }
+            unchecked { ++i; }
         }
         return min;
     }
@@ -729,7 +731,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     {
         uint256 min = 0;
         uint256 max = userPointEpoch[_addr];
-        for (uint256 i = 0; i < 128; ++i) {
+        for (uint256 i; i < 128; ) {
             if (min >= max) {
                 break;
             }
@@ -739,6 +741,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             } else {
                 max = mid - 1;
             }
+            unchecked { ++i; }
         }
         return min;
     }
@@ -824,7 +827,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Floor the timestamp to weekly interval
         uint256 iterativeTime = _floorToWeek(lastPoint.ts);
         // Iterate through all weeks between _point & _t to account for slope changes
-        for (uint256 i = 0; i < 255; ++i) {
+        for (uint256 i; i < 255; ) {
             iterativeTime = iterativeTime + WEEK;
             int128 dSlope = 0;
             // If week end is after timestamp, then truncate & leave dSlope to 0
@@ -845,6 +848,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             }
             lastPoint.slope = lastPoint.slope + dSlope;
             lastPoint.ts = iterativeTime;
+
+            unchecked { ++i; }
         }
 
         if (lastPoint.bias < 0) {

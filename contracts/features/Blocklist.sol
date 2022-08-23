@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.3;
+pragma solidity ^0.8.10;
 
 import { IVotingEscrow } from "../interfaces/IVotingEscrow.sol";
 
@@ -8,8 +8,8 @@ import { IVotingEscrow } from "../interfaces/IVotingEscrow.sol";
 /// @dev This is a basic implementation using a mapping for address => bool
 contract Blocklist {
     mapping(address => bool) private _blocklist;
-    address public manager;
-    address public ve;
+    address public immutable manager;
+    address public immutable ve;
 
     constructor(address _manager, address _ve) {
         manager = _manager;
@@ -20,9 +20,9 @@ contract Blocklist {
     /// @dev only callable by owner.
     /// @dev Allows blocklisting only of smart contracts
     /// @param addr The contract address to blocklist
-    function block(address addr) external {
+    function blockContract(address addr) external {
         require(msg.sender == manager, "Only manager");
-        require(_isContract(addr), "Only contracts");
+        require(addr.code.length > 0, "Only contracts");
         _blocklist[addr] = true;
         IVotingEscrow(ve).forceUndelegate(addr);
     }
@@ -30,15 +30,7 @@ contract Blocklist {
     /// @notice Check an address
     /// @dev This method will be called by the VotingEscrow contract
     /// @param addr The contract address to check
-    function isBlocked(address addr) public view returns (bool) {
+    function isBlocked(address addr) external view returns (bool) {
         return _blocklist[addr];
-    }
-
-    function _isContract(address addr) internal view returns (bool) {
-        uint256 size;
-        assembly {
-            size := extcodesize(addr)
-        }
-        return size > 0;
     }
 }

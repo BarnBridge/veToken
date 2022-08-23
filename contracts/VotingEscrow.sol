@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity ^0.8.3;
+pragma solidity ^0.8.10;
 
 import {
     ReentrancyGuard
@@ -42,7 +42,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     event Unlock();
 
     // Shared global state
-    IERC20 public token;
+    IERC20 public immutable token;
     uint256 public constant WEEK = 7 days;
     uint256 public constant MAXTIME = 365 days;
     uint256 public constant MULTIPLIER = 10**18;
@@ -61,9 +61,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     mapping(address => LockedBalance) public locked;
 
     // Voting token
-    string public name;
-    string public symbol;
-    uint256 public decimals = 18;
+    string public constant name = "veFDT";
+    string public constant symbol = "veFDT";
+    uint256 public constant decimals = 18;
 
     // Structs
     struct Point {
@@ -74,8 +74,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     }
     struct LockedBalance {
         int128 amount;
-        uint256 end;
         int128 delegated;
+        uint256 end;
         address delegatee;
     }
 
@@ -95,14 +95,10 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     /// @param _owner The owner is able to update `owner`, `penaltyRecipient` and `penaltyRate`
     /// @param _penaltyRecipient The recipient of penalty paid by lock quitters
     /// @param _token The token locked in order to obtain voting power
-    /// @param _name The name of the voting token
-    /// @param _symbol The symbol of the voting token
     constructor(
         address _owner,
         address _penaltyRecipient,
-        address _token,
-        string memory _name,
-        string memory _symbol
+        address _token
     ) {
         token = IERC20(_token);
         pointHistory[0] = Point({
@@ -112,11 +108,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             blk: block.number
         });
 
-        decimals = IERC20(_token).decimals();
-        require(decimals <= 18, "Exceeds max decimals");
-
-        name = _name;
-        symbol = _symbol;
         owner = _owner;
         penaltyRecipient = _penaltyRecipient;
     }
@@ -129,6 +120,11 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         _;
     }
 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
+
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
     ///       Owner Functions       ///
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
@@ -136,30 +132,26 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     /// @notice Transfers ownership to a new owner
     /// @param _addr The new owner
     /// @dev Owner should always be a timelock contract
-    function transferOwnership(address _addr) external {
-        require(msg.sender == owner, "Only owner");
+    function transferOwnership(address _addr) external onlyOwner {
         owner = _addr;
         emit TransferOwnership(_addr);
     }
 
     /// @notice Updates the blocklist contract
-    function updateBlocklist(address _addr) external {
-        require(msg.sender == owner, "Only owner");
+    function updateBlocklist(address _addr) external onlyOwner {
         blocklist = _addr;
         emit UpdateBlocklist(_addr);
     }
 
     /// @notice Updates the recipient of the accumulated penalty paid by quitters
-    function updatePenaltyRecipient(address _addr) external {
-        require(msg.sender == owner, "Only owner");
+    function updatePenaltyRecipient(address _addr) external onlyOwner {
         penaltyRecipient = _addr;
         emit UpdatePenaltyRecipient(_addr);
     }
 
     /// @notice Removes quitlock penalty by setting it to zero
     /// @dev This is an irreversible action
-    function unlock() external {
-        require(msg.sender == owner, "Only owner");
+    function unlock() external onlyOwner {
         maxPenalty = 0;
         emit Unlock();
     }
@@ -306,7 +298,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
 
         // Go over weeks to fill history and calculate what the current point is
         uint256 iterativeTime = _floorToWeek(lastCheckpoint);
-        for (uint256 i = 0; i < 255; i++) {
+        for (uint256 i = 0; i < 255; ++i) {
             // Hopefully it won't happen that this won't get used in 5 years!
             // If it does, users will be able to withdraw but vote weight will be broken
             iterativeTime = iterativeTime + WEEK;
@@ -409,15 +401,15 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
-        require(_value > 0, "Only non zero amount");
+        require(_value != 0, "Only non zero amount");
         require(locked_.amount == 0, "Lock exists");
         require(unlock_time >= locked_.end, "Only increase lock end"); // from using quitLock, user should increaseAmount instead
         require(unlock_time > block.timestamp, "Only future lock end");
         require(unlock_time <= block.timestamp + MAXTIME, "Exceeds maxtime");
         // Update lock and voting power (checkpoint)
-        locked_.amount += int128(int256(_value));
+        locked_.amount = locked_.amount + int128(int256(_value));
         locked_.end = unlock_time;
-        locked_.delegated += int128(int256(_value));
+        locked_.delegated = locked_.delegated + int128(int256(_value));
         locked_.delegatee = msg.sender;
         locked[msg.sender] = locked_;
         _checkpoint(msg.sender, LockedBalance(0, 0, 0, address(0)), locked_);
@@ -445,7 +437,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
-        require(_value > 0, "Only non zero amount");
+        require(_value != 0, "Only non zero amount");
         require(locked_.amount > 0, "No lock");
         require(locked_.end > block.timestamp, "Lock expired");
         // Update lock
@@ -457,19 +449,19 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             // Undelegated lock
             action = LockAction.INCREASE_AMOUNT_AND_DELEGATION;
             newLocked = _copyLock(locked_);
-            newLocked.amount += int128(int256(_value));
-            newLocked.delegated += int128(int256(_value));
+            newLocked.amount = newLocked.amount + int128(int256(_value));
+            newLocked.delegated = newLocked.delegated + int128(int256(_value));
             locked[msg.sender] = newLocked;
         } else {
             // Delegated lock, update sender's lock first
-            locked_.amount += int128(int256(_value));
+            locked_.amount = locked_.amount + int128(int256(_value));
             locked[msg.sender] = locked_;
             // Then, update delegatee's lock and voting power (checkpoint)
             locked_ = locked[delegatee];
             require(locked_.amount > 0, "Delegatee has no lock");
             require(locked_.end > block.timestamp, "Delegatee lock expired");
             newLocked = _copyLock(locked_);
-            newLocked.delegated += int128(int256(_value));
+            newLocked.delegated = newLocked.delegated + int128(int256(_value));
             locked[delegatee] = newLocked;
             emit Deposit(
                 delegatee,
@@ -534,7 +526,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         LockedBalance memory newLocked = _copyLock(locked_);
         newLocked.amount = 0;
         newLocked.end = 0;
-        newLocked.delegated -= int128(int256(value));
+        newLocked.delegated = newLocked.delegated - int128(int256(value));
         newLocked.delegatee = address(0);
         locked[msg.sender] = newLocked;
         newLocked.delegated = 0;
@@ -600,7 +592,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     ) internal {
         LockedBalance memory newLocked = _copyLock(_locked);
         if (action == LockAction.DELEGATE) {
-            newLocked.delegated += value;
+            newLocked.delegated = newLocked.delegated + value;
             emit Deposit(
                 addr,
                 uint256(int256(value)),
@@ -609,7 +601,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
                 block.timestamp
             );
         } else {
-            newLocked.delegated -= value;
+            newLocked.delegated = newLocked.delegated - value;
             emit Withdraw(
                 addr,
                 uint256(int256(value)),
@@ -651,7 +643,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // apply penalty
         uint256 penaltyRate = _calculatePenaltyRate(locked_.end);
         uint256 penaltyAmount = (value * penaltyRate) / 10**18; // quitlock_penalty is in 18 decimals precision
-        penaltyAccumulated += penaltyAmount;
+        penaltyAccumulated = penaltyAccumulated + penaltyAmount;
         uint256 remainingAmount = value - penaltyAmount;
         // Send back remaining tokens
         require(token.transfer(msg.sender, remainingAmount), "Transfer failed");
@@ -673,8 +665,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     function collectPenalty() external {
         uint256 amount = penaltyAccumulated;
         penaltyAccumulated = 0;
-        require(token.transfer(penaltyRecipient, amount), "Transfer failed");
-        emit CollectPenalty(amount, penaltyRecipient);
+        address recipient = penaltyRecipient;
+        require(token.transfer(recipient, amount), "Transfer failed");
+        emit CollectPenalty(amount, recipient);
     }
 
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
@@ -714,7 +707,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         uint256 min = 0;
         uint256 max = _maxEpoch;
         // Will be always enough for 128-bit numbers
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < 128; ++i) {
             if (min >= max) break;
             uint256 mid = (min + max + 1) / 2;
             if (pointHistory[mid].blk <= _block) {
@@ -736,7 +729,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     {
         uint256 min = 0;
         uint256 max = userPointEpoch[_addr];
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < 128; ++i) {
             if (min >= max) {
                 break;
             }
@@ -831,7 +824,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Floor the timestamp to weekly interval
         uint256 iterativeTime = _floorToWeek(lastPoint.ts);
         // Iterate through all weeks between _point & _t to account for slope changes
-        for (uint256 i = 0; i < 255; i++) {
+        for (uint256 i = 0; i < 255; ++i) {
             iterativeTime = iterativeTime + WEEK;
             int128 dSlope = 0;
             // If week end is after timestamp, then truncate & leave dSlope to 0

@@ -102,9 +102,7 @@ describe("VotingEscrow Delegation Math test", () => {
     votingLockup = await votingEscrowDeployer.deploy(
       admin.address,
       treasury.address,
-      fdtMock.address,
-      "veFDT",
-      "veFDT"
+      fdtMock.address
     );
     // Deploy Blocklist
     const blocklistDeployer = await ethers.getContractFactory(
@@ -139,8 +137,8 @@ describe("VotingEscrow Delegation Math test", () => {
 
   interface LockedBalance {
     amount: BN;
-    end: BN;
     delegated: BN;
+    end: BN;
     delegatee: string;
   }
 
@@ -174,8 +172,8 @@ describe("VotingEscrow Delegation Math test", () => {
       userEpoch,
       userLocked: {
         amount: locked[0],
-        end: locked[1],
-        delegated: locked[2],
+        delegated: locked[1],
+        end: locked[2],
         delegatee: locked[3],
       },
       userLastPoint: {

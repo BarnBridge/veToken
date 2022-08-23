@@ -75,9 +75,7 @@ describe("VotingEscrow Tests", function () {
     ve = await veDeployer.deploy(
       admin.address,
       treasury.address,
-      fdtMock.address,
-      "veFDT",
-      "veFDT"
+      fdtMock.address
     );
 
     // Deploy Blocklist
@@ -146,7 +144,7 @@ describe("VotingEscrow Tests", function () {
       expect(await blocklist.isBlocked(alice.address)).to.equal(false);
       expect(await blocklist.isBlocked(bob.address)).to.equal(false);
 
-      tx = blocklist.block(alice.address);
+      tx = blocklist.blockContract(alice.address);
       await expect(tx).to.be.revertedWith("Only contracts");
     });
 
@@ -156,12 +154,12 @@ describe("VotingEscrow Tests", function () {
       expect(await blocklist.isBlocked(contract.address)).to.equal(false);
       await contract.createLock(ve.address, lockAmount, lockTime);
 
-      await blocklist.block(contract2.address);
+      await blocklist.blockContract(contract2.address);
       expect(await blocklist.isBlocked(contract2.address)).to.equal(true);
     });
 
     it("Only owner can blocklist", async () => {
-      tx = blocklist.connect(bob).block(contract.address);
+      tx = blocklist.connect(bob).blockContract(contract.address);
       await expect(tx).to.be.revertedWith("Only manager");
 
       await restoreSnapshot(provider);
@@ -274,7 +272,7 @@ describe("VotingEscrow Tests", function () {
 
     it("Blocklisted contract CANNOT increase amount of tokens", async () => {
       // = await Deployer.deploy(ve.address);
-      await blocklist.block(contract.address);
+      await blocklist.blockContract(contract.address);
       expect(await fdtMock.balanceOf(contract.address)).to.equal(
         initialFDTuserBal.sub(lockAmount)
       );
@@ -370,7 +368,7 @@ describe("VotingEscrow Tests", function () {
     it("Admin blocklists malicious contracts", async () => {
       // contract 2 delegates first
       await contract2.delegate(ve.address, contract.address);
-      await blocklist.block(contract2.address);
+      await blocklist.blockContract(contract2.address);
     });
 
     it("Blocked contract gets UNDELEGATED", async () => {
@@ -378,7 +376,7 @@ describe("VotingEscrow Tests", function () {
       expect((await ve.locked(contract.address)).delegatee).to.equal(
         contract3.address
       );
-      await blocklist.block(contract.address);
+      await blocklist.blockContract(contract.address);
       expect((await ve.locked(contract.address)).delegatee).to.equal(
         contract.address
       );
@@ -389,7 +387,7 @@ describe("VotingEscrow Tests", function () {
       await expect(
         contract3.delegate(ve.address, contract.address)
       ).to.be.revertedWith("Blocked contract");
-      await blocklist.block(contract2.address);
+      await blocklist.blockContract(contract2.address);
     });
 
     it("Blocked contract CANNOT delegate to another user", async () => {

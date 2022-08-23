@@ -103,9 +103,7 @@ describe("Gas usage tests", () => {
     votingLockup = await votingEscrowDeployer.deploy(
       admin.address,
       treasury.address,
-      fdtMock.address,
-      "veFDT",
-      "veFDT"
+      fdtMock.address
     );
     // Deploy Blocklist
     const blocklistDeployer = await ethers.getContractFactory(
@@ -140,8 +138,8 @@ describe("Gas usage tests", () => {
 
   interface LockedBalance {
     amount: BN;
-    end: BN;
     delegated: BN;
+    end: BN;
     delegatee: string;
   }
 
@@ -175,8 +173,8 @@ describe("Gas usage tests", () => {
       userEpoch,
       userLocked: {
         amount: locked[0],
-        end: locked[1],
-        delegated: locked[2],
+        delegated: locked[1],
+        end: locked[2],
         delegatee: locked[3],
       },
       userLastPoint: {

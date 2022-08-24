@@ -585,7 +585,7 @@ describe("Gas usage tests", () => {
           .connect(charlie)
           .increaseUnlockTime((await getTimestamp()).add(ONE_YEAR));
         // This one costs ~340K
-        await votingLockup.connect(charlie).delegate(charlie.address);
+        await votingLockup.connect(charlie).undelegate();
         await increaseTime(ONE_YEAR);
         await votingLockup.checkpoint();
         await votingLockup.connect(charlie).withdraw();

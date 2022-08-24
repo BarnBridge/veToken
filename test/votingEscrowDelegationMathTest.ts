@@ -361,8 +361,8 @@ describe("VotingEscrow Delegation Math test", () => {
         });
         it("Charlie fails to undelegate because his lock is shorter than Alice's", async () => {
           await expect(
-            votingLockup.connect(charlie).delegate(charlie.address)
-          ).to.be.revertedWith("Only delegate to longer lock");
+            votingLockup.connect(charlie).undelegate()
+          ).to.be.revertedWith("Only undelegate if longer lock");
 
           // Charlie has no voting power
           expect(
@@ -439,7 +439,7 @@ describe("VotingEscrow Delegation Math test", () => {
 
           let aliceData = await snapshotData(alice);
 
-          await votingLockup.connect(charlie).delegate(charlie.address);
+          await votingLockup.connect(charlie).undelegate();
 
           // Alice has no more Charlie's voting power
           aliceData = await snapshotData(alice);
@@ -909,15 +909,15 @@ describe("VotingEscrow Delegation Math test", () => {
         it("Eve has to increase her unlock time to undelegate, David delegates to Alice", async () => {
           // Now that Alice has re-opened the lock, Eve has to wait again (she also need to undelegate first, which fails)
           await expect(
-            votingLockup.connect(eve).delegate(eve.address)
-          ).to.be.revertedWith("Delegatee lock expired");
+            votingLockup.connect(eve).undelegate()
+          ).to.be.revertedWith("Only undelegate if longer lock");
 
           // She increases her unlock time to undelegate
           await votingLockup
             .connect(eve)
             .increaseUnlockTime((await getTimestamp()).add(ONE_YEAR));
 
-          await votingLockup.connect(eve).delegate(eve.address);
+          await votingLockup.connect(eve).undelegate();
 
           // Alice has only her voting power left
           const aliceData = await snapshotData(alice);
@@ -1174,8 +1174,8 @@ describe("VotingEscrow Delegation Math test", () => {
         it("Charlie fails to undelegate because of smaller locked end", async () => {
           // Charlie cannot undelegate
           await expect(
-            votingLockup.connect(charlie).delegate(charlie.address)
-          ).to.be.revertedWith("Only delegate to longer lock");
+            votingLockup.connect(charlie).undelegate()
+          ).to.be.revertedWith("Only undelegate if longer lock");
         });
 
         it("Charlie succeds to increase unlock time while having delegation to unexisting lock amount but NOT expired lock end, then undelegate", async () => {
@@ -1186,7 +1186,7 @@ describe("VotingEscrow Delegation Math test", () => {
 
           expect(await votingLockup.balanceOf(charlie.address)).to.equal(0);
 
-          await votingLockup.connect(charlie).delegate(charlie.address);
+          await votingLockup.connect(charlie).undelegate();
 
           // Charlie has his power back
           assertBNClosePercent(

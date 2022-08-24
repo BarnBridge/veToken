@@ -548,8 +548,8 @@ describe("VotingEscrow Tests", function () {
     });
 
     it("Alice's lock ends before Contract's, Alice cannot delegate back to herself", async () => {
-      tx = ve.connect(alice).delegate(alice.address);
-      await expect(tx).to.be.revertedWith("Only delegate to longer lock");
+      tx = ve.connect(alice).undelegate();
+      await expect(tx).to.be.revertedWith("Only undelegate if longer lock");
 
       const block = await getBlock();
       expect(await ve.balanceOfAt(alice.address, block)).to.equal(0);
@@ -577,7 +577,7 @@ describe("VotingEscrow Tests", function () {
       expect(balance_before_contract).to.above(0);
 
       // undelegate
-      await ve.connect(alice).delegate(alice.address);
+      await ve.connect(alice).undelegate();
 
       // post undelegation
       block = await getBlock();
@@ -643,7 +643,7 @@ describe("VotingEscrow Tests", function () {
       await ve
         .connect(bob)
         .increaseUnlockTime(7 * WEEK + (await getTimestamp()));
-      await ve.connect(bob).delegate(bob.address);
+      await ve.connect(bob).undelegate();
 
       // post undelegation
       block = await getBlock();
@@ -746,8 +746,8 @@ describe("VotingEscrow Tests", function () {
     });
 
     it("Bob's lock ends before Contract's, Bob cannot delegate back to himself", async () => {
-      tx = ve.connect(bob).delegate(bob.address);
-      await expect(tx).to.be.revertedWith("Only delegate to longer lock");
+      tx = ve.connect(bob).undelegate();
+      await expect(tx).to.be.revertedWith("Only undelegate if longer lock");
 
       const block = await getBlock();
       expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
@@ -772,7 +772,7 @@ describe("VotingEscrow Tests", function () {
       expect(await ve.balanceOfAt(contract.address, block)).to.equal(0);
 
       // undelegate
-      await ve.connect(bob).delegate(bob.address);
+      await ve.connect(bob).undelegate();
 
       // post undelegation
       block = await getBlock();

@@ -584,10 +584,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             // Delegate
             fromLocked = locked_;
             toLocked = locked[_addr];
-        } else if (_addr == msg.sender) {
-            // Undelegate
-            fromLocked = locked[delegatee];
-            toLocked = locked_;
         } else {
             // Re-delegate
             fromLocked = locked[delegatee];

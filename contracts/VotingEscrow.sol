@@ -529,7 +529,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     }
 
     // See IVotingEscrow for documentation
-    function withdraw() public override nonReentrant {
+    function withdraw() external override nonReentrant {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
         require(locked_.amount > 0, "No lock");
@@ -573,6 +573,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             locked[locked_.delegatee].end > block.timestamp,
             "Delegatee lock expired, use undelegate and withdraw"
         );
+        require(_addr != msg.sender, "Use undelegate");
         // Update locks
         int128 value = locked_.amount;
         address delegatee = locked_.delegatee;
@@ -607,11 +608,18 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Validate inputs
         require(locked_.amount > 0, "No lock");
         require(locked_.delegatee != msg.sender, "Already undelegated");
-        // If delegatee's lock expired, allow to undelegate
-        require(
-            locked[locked_.delegatee].end <= block.timestamp,
-            "Lock not yet expired"
-        );
+
+        if (locked[locked_.delegatee].end > block.timestamp) {
+            // require(locked_.end > block.timestamp, "Delegatee lock expired");
+            require(
+                locked_.end >= locked[locked_.delegatee].end,
+                "Only undelegate if longer lock"
+            );
+        }
+        // require(
+        //     locked[locked_.delegatee].end <= block.timestamp,
+        //     "Lock not yet expired"
+        // );
         // Update locks
         int128 value = locked_.amount;
         address delegatee = locked_.delegatee;
@@ -625,8 +633,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
 
         _delegate(delegatee, fromLocked, value, LockAction.UNDELEGATE);
         _delegate(msg.sender, toLocked, value, LockAction.DELEGATE);
-
-        // Optional: Inmediately withdraw since it won't be able to do any more things?
     }
 
     // Delegates from/to lock and voting power

@@ -564,6 +564,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         nonReentrant
         checkBlocklist
     {
+        if (_addr == msg.sender) {
+            return _undelegate();
+        }
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
         require(!IBlocklist(blocklist).isBlocked(_addr), "Blocked contract");
@@ -599,7 +602,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     }
 
     // See IVotingEscrow for documentation
-    function undelegate() external nonReentrant checkBlocklist {
+    function _undelegate() internal {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
         require(locked_.amount > 0, "No lock");

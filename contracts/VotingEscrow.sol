@@ -615,10 +615,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
                 "Only undelegate if longer lock"
             );
         }
-        // require(
-        //     locked[locked_.delegatee].end <= block.timestamp,
-        //     "Lock not yet expired"
-        // );
         // Update locks
         int128 value = locked_.amount;
         address delegatee = locked_.delegatee;

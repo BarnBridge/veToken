@@ -547,16 +547,6 @@ describe("VotingEscrow Tests", function () {
       expect(await ve.balanceOfAt(contract.address, block)).to.above(0);
     });
 
-    it("Alice's lock ends before Contract's, Alice cannot delegate back to herself", async () => {
-      tx = ve.connect(alice).delegate(alice.address);
-      await expect(tx).to.be.revertedWith("Only undelegate if longer lock");
-
-      const block = await getBlock();
-      expect(await ve.balanceOfAt(alice.address, block)).to.equal(0);
-      expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
-      expect(await ve.balanceOfAt(contract.address, block)).to.above(0);
-    });
-
     it("Alice extends her lock", async () => {
       const lockTime = 8 * WEEK + (await getTimestamp());
       await ve.connect(alice).increaseUnlockTime(lockTime);
@@ -745,27 +735,7 @@ describe("VotingEscrow Tests", function () {
       expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
     });
 
-    it("Bob's lock ends before Contract's, Bob cannot delegate back to himself", async () => {
-      tx = ve.connect(bob).delegate(bob.address);
-      await expect(tx).to.be.revertedWith("Only undelegate if longer lock");
-
-      const block = await getBlock();
-      expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
-      // Contract has no voting power
-      expect(await ve.balanceOfAt(contract.address, block)).to.equal(0);
-    });
-
-    it("Bob extends his lock", async () => {
-      const lockTime = 50 * WEEK + (await getTimestamp());
-      await ve.connect(bob).increaseUnlockTime(lockTime);
-
-      const block = await getBlock();
-      // expect(await ve.lockEnd(bob.address)).to.equal(
-      //   Math.trunc(lockTime / WEEK) * WEEK
-      // );
-    });
-
-    it("Bob's lock ends after Contract's, Bob can delegate back to himself", async () => {
+    it("Bob's lock ends before Contract's, Bob can still delegate back to himself", async () => {
       // pre undelegation
       let block = await getBlock();
       expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);

@@ -4,7 +4,6 @@ pragma solidity ^0.8.3;
 import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IERC20 } from "./interfaces/IERC20.sol";
 import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
 import { IBlocklist } from "./interfaces/IBlocklist.sol";
@@ -237,18 +236,18 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             if (_oldLocked.end > block.timestamp && _oldLocked.delegated > 0) {
                 userOldPoint.slope =
                     _oldLocked.delegated /
-                    SafeCast.toInt128(int256(MAXTIME));
+                    int128(int256(MAXTIME));
                 userOldPoint.bias =
                     userOldPoint.slope *
-                    SafeCast.toInt128(int256(_oldLocked.end - block.timestamp));
+                    int128(int256(_oldLocked.end - block.timestamp));
             }
             if (_newLocked.end > block.timestamp && _newLocked.delegated > 0) {
                 userNewPoint.slope =
                     _newLocked.delegated /
-                    SafeCast.toInt128(int256(MAXTIME));
+                    int128(int256(MAXTIME));
                 userNewPoint.bias =
                     userNewPoint.slope *
-                    SafeCast.toInt128(int256(_newLocked.end - block.timestamp));
+                    int128(int256(_newLocked.end - block.timestamp));
             }
 
             // Moved from bottom final if statement to resolve stack too deep err
@@ -319,7 +318,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             }
             int128 biasDelta =
                 lastPoint.slope *
-                    SafeCast.toInt128(int256((iterativeTime - lastCheckpoint)));
+                    int128(int256((iterativeTime - lastCheckpoint)));
             lastPoint.bias = lastPoint.bias - biasDelta;
             lastPoint.slope = lastPoint.slope + dSlope;
             // This can happen
@@ -416,9 +415,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(unlock_time > block.timestamp, "Only future lock end");
         require(unlock_time <= block.timestamp + MAXTIME, "Exceeds maxtime");
         // Update lock and voting power (checkpoint)
-        locked_.amount += SafeCast.toInt128(int256(_value));
+        locked_.amount += int128(int256(_value));
         locked_.end = unlock_time;
-        locked_.delegated += SafeCast.toInt128(int256(_value));
+        locked_.delegated += int128(int256(_value));
         locked_.delegatee = msg.sender;
         locked[msg.sender] = locked_;
         _checkpoint(msg.sender, LockedBalance(0, 0, 0, address(0)), locked_);
@@ -458,19 +457,19 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             // Undelegated lock
             action = LockAction.INCREASE_AMOUNT_AND_DELEGATION;
             newLocked = _copyLock(locked_);
-            newLocked.amount += SafeCast.toInt128(int256(_value));
-            newLocked.delegated += SafeCast.toInt128(int256(_value));
+            newLocked.amount += int128(int256(_value));
+            newLocked.delegated += int128(int256(_value));
             locked[msg.sender] = newLocked;
         } else {
             // Delegated lock, update sender's lock first
-            locked_.amount += SafeCast.toInt128(int256(_value));
+            locked_.amount += int128(int256(_value));
             locked[msg.sender] = locked_;
             // Then, update delegatee's lock and voting power (checkpoint)
             locked_ = locked[delegatee];
             require(locked_.amount > 0, "Delegatee has no lock");
             require(locked_.end > block.timestamp, "Delegatee lock expired");
             newLocked = _copyLock(locked_);
-            newLocked.delegated += SafeCast.toInt128(int256(_value));
+            newLocked.delegated += int128(int256(_value));
             locked[delegatee] = newLocked;
             emit Deposit(
                 delegatee,
@@ -535,7 +534,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         LockedBalance memory newLocked = _copyLock(locked_);
         newLocked.amount = 0;
         newLocked.end = 0;
-        newLocked.delegated -= SafeCast.toInt128(int256(value));
+        newLocked.delegated -= int128(int256(value));
         newLocked.delegatee = address(0);
         locked[msg.sender] = newLocked;
         newLocked.delegated = 0;
@@ -640,7 +639,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         uint256 value = uint256(uint128(locked_.amount));
         LockedBalance memory newLocked = _copyLock(locked_);
         newLocked.amount = 0;
-        newLocked.delegated -= SafeCast.toInt128(int256(value));
+        newLocked.delegated -= int128(int256(value));
         newLocked.delegatee = address(0);
         locked[msg.sender] = newLocked;
         newLocked.end = 0;
@@ -760,8 +759,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         Point memory lastPoint = userPointHistory[_owner][epoch];
         lastPoint.bias =
             lastPoint.bias -
-            (lastPoint.slope *
-                SafeCast.toInt128(int256(block.timestamp - lastPoint.ts)));
+            (lastPoint.slope * int128(int256(block.timestamp - lastPoint.ts)));
         if (lastPoint.bias < 0) {
             lastPoint.bias = 0;
         }
@@ -848,7 +846,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             lastPoint.bias =
                 lastPoint.bias -
                 (lastPoint.slope *
-                    SafeCast.toInt128(int256(iterativeTime - lastPoint.ts)));
+                    int128(int256(iterativeTime - lastPoint.ts)));
             if (iterativeTime == _t) {
                 break;
             }

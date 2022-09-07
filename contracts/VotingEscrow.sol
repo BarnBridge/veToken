@@ -453,23 +453,24 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         uint256 unlockTime = locked_.end;
         LockAction action = LockAction.INCREASE_AMOUNT;
         LockedBalance memory newLocked;
+        int128 value = int128(int256(_value));
         if (delegatee == msg.sender) {
             // Undelegated lock
             action = LockAction.INCREASE_AMOUNT_AND_DELEGATION;
             newLocked = _copyLock(locked_);
-            newLocked.amount += int128(int256(_value));
-            newLocked.delegated += int128(int256(_value));
+            newLocked.amount += value;
+            newLocked.delegated += value;
             locked[msg.sender] = newLocked;
         } else {
             // Delegated lock, update sender's lock first
-            locked_.amount += int128(int256(_value));
+            locked_.amount += value;
             locked[msg.sender] = locked_;
             // Then, update delegatee's lock and voting power (checkpoint)
             locked_ = locked[delegatee];
             require(locked_.amount > 0, "Delegatee has no lock");
             require(locked_.end > block.timestamp, "Delegatee lock expired");
             newLocked = _copyLock(locked_);
-            newLocked.delegated += int128(int256(_value));
+            newLocked.delegated += value;
             locked[delegatee] = newLocked;
             emit Deposit(
                 delegatee,

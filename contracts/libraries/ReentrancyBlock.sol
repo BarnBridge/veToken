@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.3;
 
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.

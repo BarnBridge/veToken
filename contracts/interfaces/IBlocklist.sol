@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.3;
 
 /// @title Blocklist Checker interface
 /// @notice Basic blocklist checker interface for VotingEscrow

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity ^0.8.10;
+pragma solidity 0.8.3;
 
 import {
     ReentrancyGuard
@@ -61,9 +61,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     mapping(address => LockedBalance) public locked;
 
     // Voting token
-    string public constant name = "veFDT";
-    string public constant symbol = "veFDT";
-    uint256 public constant decimals = 18;
+    string public name;
+    string public symbol;
+    uint256 public decimals;
 
     // Structs
     struct Point {
@@ -75,7 +75,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     struct LockedBalance {
         int128 amount;
         int128 delegated;
-        uint256 end;
+        uint96 end;
         address delegatee;
     }
 
@@ -95,10 +95,14 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     /// @param _owner The owner is able to update `owner`, `penaltyRecipient` and `penaltyRate`
     /// @param _penaltyRecipient The recipient of penalty paid by lock quitters
     /// @param _token The token locked in order to obtain voting power
+    /// @param _name The name of the voting token
+    /// @param _symbol The symbol of the voting token
     constructor(
         address _owner,
         address _penaltyRecipient,
-        address _token
+        address _token,
+        string memory _name,
+        string memory _symbol
     ) {
         token = IERC20(_token);
         pointHistory[0] = Point({
@@ -108,6 +112,11 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             blk: block.number
         });
 
+        decimals = IERC20(_token).decimals();
+        require(decimals <= 18, "Exceeds max decimals");
+
+        name = _name;
+        symbol = _symbol;
         owner = _owner;
         penaltyRecipient = _penaltyRecipient;
     }
@@ -409,7 +418,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(unlock_time <= block.timestamp + MAXTIME, "Exceeds maxtime");
         // Update lock and voting power (checkpoint)
         locked_.amount = locked_.amount + int128(int256(_value));
-        locked_.end = unlock_time;
+        locked_.end = uint96(unlock_time);
         locked_.delegated = locked_.delegated + int128(int256(_value));
         locked_.delegatee = msg.sender;
         locked[msg.sender] = locked_;
@@ -497,13 +506,13 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(unlock_time <= block.timestamp + MAXTIME, "Exceeds maxtime");
         // Update lock
         uint256 oldUnlockTime = locked_.end;
-        locked_.end = unlock_time;
+        locked_.end = uint96(unlock_time);
         locked[msg.sender] = locked_;
         if (locked_.delegatee == msg.sender) {
             // Undelegated lock
             require(oldUnlockTime > block.timestamp, "Lock expired");
             LockedBalance memory oldLocked = _copyLock(locked_);
-            oldLocked.end = unlock_time;
+            oldLocked.end = uint96(unlock_time);
             _checkpoint(msg.sender, oldLocked, locked_);
         }
         emit Deposit(

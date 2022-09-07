@@ -103,7 +103,9 @@ describe("Gas usage tests", () => {
     votingLockup = await votingEscrowDeployer.deploy(
       admin.address,
       treasury.address,
-      fdtMock.address
+      fdtMock.address,
+      "veFDT",
+      "veFDT"
     );
     // Deploy Blocklist
     const blocklistDeployer = await ethers.getContractFactory(

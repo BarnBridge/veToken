@@ -75,7 +75,9 @@ describe("VotingEscrow Tests", function () {
     ve = await veDeployer.deploy(
       admin.address,
       treasury.address,
-      fdtMock.address
+      fdtMock.address,
+      "veFDT",
+      "veFDT"
     );
 
     // Deploy Blocklist

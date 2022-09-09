@@ -4,7 +4,11 @@ pragma solidity ^0.8.3;
 import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import { IERC20 } from "./interfaces/IERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IBasicToken } from "./interfaces/IBasicToken.sol";
 import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
 import { IBlocklist } from "./interfaces/IBlocklist.sol";
 
@@ -21,6 +25,7 @@ import { IBlocklist } from "./interfaces/IBlocklist.sol";
 ///            4) Reduced pointHistory array size and, as a result, lifetime of the contract
 ///            5) Removed public deposit_for and Aragon compatibility (no use case)
 contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
+    using SafeERC20 for IERC20;
     // Shared Events
     event Deposit(
         address indexed provider,
@@ -112,7 +117,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             blk: block.number
         });
 
-        decimals = IERC20(_token).decimals();
+        decimals = IBasicToken(_token).decimals();
         require(decimals <= 18, "Exceeds max decimals");
 
         name = _name;
@@ -422,10 +427,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         locked[msg.sender] = locked_;
         _checkpoint(msg.sender, LockedBalance(0, 0, 0, address(0)), locked_);
         // Deposit locked tokens
-        require(
-            token.transferFrom(msg.sender, address(this), _value),
-            "Transfer failed"
-        );
+        token.safeTransferFrom(msg.sender, address(this), _value);
+
         emit Deposit(
             msg.sender,
             _value,
@@ -482,10 +485,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Checkpoint only for delegatee
         _checkpoint(delegatee, locked_, newLocked);
         // Deposit locked tokens
-        require(
-            token.transferFrom(msg.sender, address(this), _value),
-            "Transfer failed"
-        );
+        token.safeTransferFrom(msg.sender, address(this), _value);
+
         emit Deposit(msg.sender, _value, unlockTime, action, block.timestamp);
     }
 
@@ -543,7 +544,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Both can have >= 0 amount
         _checkpoint(msg.sender, locked_, newLocked);
         // Send back deposited tokens
-        require(token.transfer(msg.sender, value), "Transfer failed");
+        token.safeTransfer(msg.sender, value);
         emit Withdraw(msg.sender, value, LockAction.WITHDRAW, block.timestamp);
     }
 
@@ -654,7 +655,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         penaltyAccumulated += penaltyAmount;
         uint256 remainingAmount = value - penaltyAmount;
         // Send back remaining tokens
-        require(token.transfer(msg.sender, remainingAmount), "Transfer failed");
+        token.safeTransfer(msg.sender, remainingAmount);
         emit Withdraw(msg.sender, value, LockAction.QUIT, block.timestamp);
     }
 
@@ -673,7 +674,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     function collectPenalty() external {
         uint256 amount = penaltyAccumulated;
         penaltyAccumulated = 0;
-        require(token.transfer(penaltyRecipient, amount), "Transfer failed");
+        token.safeTransfer(penaltyRecipient, amount);
         emit CollectPenalty(amount, penaltyRecipient);
     }
 

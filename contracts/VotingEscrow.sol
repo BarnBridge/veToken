@@ -8,7 +8,9 @@ import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IBasicToken } from "./interfaces/IBasicToken.sol";
+import {
+    IERC20Metadata
+} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
 import { IBlocklist } from "./interfaces/IBlocklist.sol";
 
@@ -117,7 +119,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             blk: block.number
         });
 
-        decimals = IBasicToken(_token).decimals();
+        decimals = IERC20Metadata(_token).decimals();
         require(decimals <= 18, "Exceeds max decimals");
 
         name = _name;

@@ -649,7 +649,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Update lock
         LockedBalance memory newLocked = _copyLock(locked_);
         newLocked.amount = 0;
-        newLocked.delegated -= locked_.amount;
+        newLocked.delegated = newLocked.delegated - locked_.amount;
         newLocked.delegatee = address(0);
         locked[msg.sender] = newLocked;
         newLocked.end = 0;

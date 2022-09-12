@@ -4,7 +4,10 @@ pragma solidity ^0.8.3;
 import {
     ReentrancyGuard
 } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import { IERC20 } from "./interfaces/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {
+    IERC20Metadata
+} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
 import { IBlocklist } from "./interfaces/IBlocklist.sol";
 
@@ -112,7 +115,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             blk: block.number
         });
 
-        decimals = IERC20(_token).decimals();
+        decimals = IERC20Metadata(_token).decimals();
         require(decimals <= 18, "Exceeds max decimals");
 
         name = _name;

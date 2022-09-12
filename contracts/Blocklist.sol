@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.3;
 
-import { IVotingEscrow } from "../interfaces/IVotingEscrow.sol";
+import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
 
 /// @title Blocklist Checker implementation.
 /// @notice Checks if an address is blocklisted

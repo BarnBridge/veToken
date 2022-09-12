@@ -2,7 +2,7 @@
 
 // taken from our contracts repo
 
-import "../libraries/ERC20PermitWithMint.sol";
+import "./libraries/ERC20PermitWithMint.sol";
 
 pragma solidity ^0.8.0;
 

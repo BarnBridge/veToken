@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.3;
 
-import "../interfaces/IERC20Permit.sol";
+import "./IERC20Permit.sol";
 
 // This default erc20 library is designed for max efficiency and security.
 // WARNING: By default it does not include totalSupply which breaks the ERC20 standard
@@ -13,9 +13,9 @@ abstract contract ERC20Permit is IERC20Permit {
     // The name of the erc20 token
     string public name;
     // The symbol of the erc20 token
-    string public override symbol;
+    string public symbol;
     // The decimals of the erc20 token, should default to 18 for new tokens
-    uint8 public override decimals;
+    uint8 public decimals;
 
     // A mapping which tracks user token balances
     mapping(address => uint256) public override balanceOf;

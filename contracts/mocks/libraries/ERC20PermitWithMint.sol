@@ -21,7 +21,7 @@ abstract contract ERC20PermitWithMint is ERC20Permit, Authorizable {
     }
 
     // The stored totalSupply, it equals all tokens minted - all tokens burned
-    uint256 public totalSupply;
+    uint256 public override totalSupply;
 
     /// @notice Allows the governance to mint
     /// @param account the account to addd tokens to

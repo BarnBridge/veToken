@@ -560,7 +560,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     {
         // Different restrictions apply to undelegation
         if (_addr == msg.sender) {
-            return _undelegate();
+            _undelegate();
+            return;
         }
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs

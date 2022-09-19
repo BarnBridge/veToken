@@ -522,7 +522,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         if (locked_.delegated > 0) {
             // Undelegated lock
             LockedBalance memory oldLocked = _copyLock(locked_);
-            oldLocked.end = uint96(unlock_time);
+            oldLocked.end = uint96(oldUnlockTime);
             _checkpoint(msg.sender, oldLocked, locked_);
         }
         emit Deposit(

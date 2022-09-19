@@ -181,6 +181,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             LockedBalance memory fromLocked;
             locked_.delegatee = _addr;
             fromLocked = locked[delegatee];
+            locked_.end = fromLocked.end;
             _delegate(delegatee, fromLocked, value, LockAction.UNDELEGATE);
             _delegate(_addr, locked_, value, LockAction.DELEGATE);
         }

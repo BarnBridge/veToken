@@ -514,6 +514,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
         // Validate inputs
         require(locked_.amount > 0, "No lock");
+        require(locked_.end > block.timestamp, "Lock expired");
         require(unlock_time > locked_.end, "Only increase lock end");
         require(unlock_time <= block.timestamp + MAXTIME, "Exceeds maxtime");
         // Update lock
@@ -522,7 +523,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         locked[msg.sender] = locked_;
         if (locked_.delegatee == msg.sender) {
             // Undelegated lock
-            require(oldUnlockTime > block.timestamp, "Lock expired");
             LockedBalance memory oldLocked = _copyLock(locked_);
             oldLocked.end = uint96(unlock_time);
             _checkpoint(msg.sender, oldLocked, locked_);
@@ -572,37 +572,51 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         nonReentrant
         checkBlocklist
     {
+        // Different restrictions apply to undelegation
+        if (_addr == msg.sender) {
+            _undelegate();
+            return;
+        }
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
         require(!IBlocklist(blocklist).isBlocked(_addr), "Blocked contract");
         require(locked_.amount > 0, "No lock");
+        require(locked_.end > block.timestamp, "Lock expired");
         require(locked_.delegatee != _addr, "Already delegated");
         // Update locks
         int128 value = locked_.amount;
         address delegatee = locked_.delegatee;
-        LockedBalance memory fromLocked;
-        LockedBalance memory toLocked;
+        LockedBalance memory toLocked = locked[_addr];
         locked_.delegatee = _addr;
-        if (delegatee == msg.sender) {
-            // Delegate
-            fromLocked = locked_;
-            toLocked = locked[_addr];
-        } else if (_addr == msg.sender) {
-            // Undelegate
-            fromLocked = locked[delegatee];
-            toLocked = locked_;
-        } else {
-            // Re-delegate
-            fromLocked = locked[delegatee];
-            toLocked = locked[_addr];
-            // Update owner lock if not involved in delegation
+        if (delegatee != msg.sender) {
             locked[msg.sender] = locked_;
+            locked_ = locked[delegatee];
         }
         require(toLocked.amount > 0, "Delegatee has no lock");
         require(toLocked.end > block.timestamp, "Delegatee lock expired");
-        require(toLocked.end >= fromLocked.end, "Only delegate to longer lock");
-        _delegate(delegatee, fromLocked, value, LockAction.UNDELEGATE);
+        require(toLocked.end >= locked_.end, "Only delegate to longer lock");
+        _delegate(delegatee, locked_, value, LockAction.UNDELEGATE);
         _delegate(_addr, toLocked, value, LockAction.DELEGATE);
+    }
+
+    // Undelegates sender's lock
+    // @dev Can be executed on expired locks too.
+    // @dev Owner inherits delegatee's unlockTime if it exceeds owner's.
+    function _undelegate() internal {
+        LockedBalance memory locked_ = locked[msg.sender];
+        // Validate inputs
+        require(locked_.amount > 0, "No lock");
+        require(locked_.delegatee != msg.sender, "Already undelegated");
+        // Update locks
+        int128 value = locked_.amount;
+        address delegatee = locked_.delegatee;
+        LockedBalance memory fromLocked = locked[delegatee];
+        locked_.delegatee = msg.sender;
+        if (locked_.end < fromLocked.end) {
+            locked_.end = fromLocked.end;
+        }
+        _delegate(delegatee, fromLocked, value, LockAction.UNDELEGATE);
+        _delegate(msg.sender, locked_, value, LockAction.DELEGATE);
     }
 
     // Delegates from/to lock and voting power

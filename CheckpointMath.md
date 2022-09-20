@@ -129,7 +129,7 @@ Action details:
 
 | Action | require | update | checkpoint |
 | --- | --- | --- | --- |
-| delegate<br>D:=new delegatee | owner.amount>0<br>owner.delegatee≠D<br>to.amount>0<br>to.end>block.t<br>to.end > from.end | owner.delegatee=D<br>from.delegated-=owner.amount<br>to.delegated+=owner.amount | if(from.amount>0) { from }<br>D
+| delegate<br>D:=new delegatee | owner.amount>0<br>owner.delegatee≠D<br>to.amount>0<br>to.end>block.t<br>to.end >= from.end | owner.delegatee=D<br>from.delegated-=owner.amount<br>to.delegated+=owner.amount | if(from.amount>0) { from }<br>D
 
 
 Checkpoint details:

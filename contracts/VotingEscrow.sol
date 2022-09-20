@@ -15,17 +15,19 @@ import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
 import { IBlocklist } from "./interfaces/IBlocklist.sol";
 
 /// @title  VotingEscrow
-/// @author Curve Finance (MIT) - original concept and implementation in Vyper
-///           (see https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy)
-///         mStable (AGPL) - forking Curve's Vyper contract and porting to Solidity
-///           (see https://github.com/mstable/mStable-contracts/blob/master/contracts/governance/IncentivisedVotingLockup.sol)
+/// @author Curve Finance (MIT) - original concept and implementation in Vyper (see https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy)
+///         mStable (AGPL) - forking Curve's Vyper contract and porting to Solidity (see https://github.com/mstable/mStable-contracts/blob/master/contracts/governance/IncentivisedVotingLockup.sol)
 ///         FIAT DAO (AGPL) - this version
 /// @notice Plain Curve VotingEscrow mechanics with following adjustments:
-///            1) Delegation of lock and voting power
-///            2) Quit an existing lock and pay a penalty
-///            3) Whitelisting of SmartWallets outside the VotingEscrow
-///            4) Reduced pointHistory array size and, as a result, lifetime of the contract
-///            5) Removed public deposit_for and Aragon compatibility (no use case)
+///         1) Delegation of lock and voting power
+///         2) Quit an existing lock and pay a penalty
+///         3) Optimistic approval of SmartWallets through Blocklist
+///         4) Reduced pointHistory array size and, as a result, lifetime of the contract
+///         5) Removed public deposit_for and Aragon compatibility (no use case)
+/// @dev Usage of this contract is not safe with all tokens, specifically
+///         1) Contract does not support tokens with maxSupply>2^128-10^[decimals]
+///         2) Contract does not support fee-on-transfer tokens
+///         3) Contract may be unsafe for tokens with decimals<6
 contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     using SafeERC20 for IERC20;
     // Shared Events
@@ -520,7 +522,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         locked_.end = uint96(unlock_time);
         locked[msg.sender] = locked_;
         if (locked_.delegated > 0) {
-            // Undelegated lock
+            // Lock with non-zero virtual balance
             LockedBalance memory oldLocked = _copyLock(locked_);
             oldLocked.end = uint96(oldUnlockTime);
             _checkpoint(msg.sender, oldLocked, locked_);

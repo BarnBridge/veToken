@@ -14,20 +14,24 @@ import {
 import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
 import { IBlocklist } from "./interfaces/IBlocklist.sol";
 
-/// @title  VotingEscrow
-/// @author Curve Finance (MIT) - original concept and implementation in Vyper (see https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy)
-///         mStable (AGPL) - forking Curve's Vyper contract and porting to Solidity (see https://github.com/mstable/mStable-contracts/blob/master/contracts/governance/IncentivisedVotingLockup.sol)
-///         FIAT DAO (AGPL) - this version
-/// @notice Plain Curve VotingEscrow mechanics with following adjustments:
-///         1) Delegation of lock and voting power
-///         2) Quit an existing lock and pay a penalty
-///         3) Optimistic approval of SmartWallets through Blocklist
-///         4) Reduced pointHistory array size and, as a result, lifetime of the contract
-///         5) Removed public deposit_for and Aragon compatibility (no use case)
-/// @dev Usage of this contract is not safe with all tokens, specifically
-///         1) Contract does not support tokens with maxSupply>2^128-10^[decimals]
-///         2) Contract does not support fee-on-transfer tokens
-///         3) Contract may be unsafe for tokens with decimals<6
+/// @title  Delegated Voting Escrow
+/// @notice An ERC20 token that allocates users a virtual balance depending
+/// on the amount of tokens locked and their remaining lock duration. The
+/// virtual balance decreases linearly with the remaining lock duration.
+/// This is the locking mechanism known from veCRV with additional features:
+/// - Delegation of lock and voting power
+/// - Quit an existing lock and pay a penalty
+/// - Optimistic approval of SmartWallets through Blocklist
+/// - Reduced pointHistory array size and, as a result, lifetime of the contract
+/// - Removed public deposit_for and Aragon compatibility (no use case)
+/// @dev Builds on Curve Finance's original VotingEscrow implementation
+/// (see https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy)
+/// and mStable's Solidity translation thereof
+/// (see https://github.com/mstable/mStable-contracts/blob/master/contracts/governance/IncentivisedVotingLockup.sol)
+/// Usage of this contract is not safe with all tokens, specifically
+/// - Contract does not support tokens with maxSupply>2^128-10^[decimals]
+/// - Contract does not support fee-on-transfer tokens
+/// - Contract may be unsafe for tokens with decimals<6
 contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     using SafeERC20 for IERC20;
     // Shared Events
@@ -101,7 +105,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     }
 
     /// @notice Initializes state
-    /// @param _owner The owner is able to update `owner`, `penaltyRecipient` and `penaltyRate`
+    /// @param _owner Is assumed to be a timelock contract
     /// @param _penaltyRecipient The recipient of penalty paid by lock quitters
     /// @param _token The token locked in order to obtain voting power
     /// @param _name The name of the voting token
@@ -149,7 +153,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
 
     /// @notice Transfers ownership to a new owner
     /// @param _addr The new owner
-    /// @dev Owner should always be a timelock contract
+    /// @dev Owner is assumed to be a timelock contract
     function transferOwnership(address _addr) external onlyOwner {
         owner = _addr;
         emit TransferOwnership(_addr);
@@ -168,15 +172,16 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     }
 
     /// @notice Removes quitlock penalty by setting it to zero
-    /// @dev This is an irreversible action
+    /// @dev This is an irreversible action and is assumed to be used in
+    /// a migration to a new VotingEscrow contract only
     function unlock() external onlyOwner {
         maxPenalty = 0;
         emit Unlock();
     }
 
-    /// @notice Forces an undelegation of virtual balance for a blocked locker
-    /// @dev Can only be called by the Blocklist contract (as part of a block)
-    /// @dev This is an irreversible action
+    /// @notice Remove delegation for blocked contract.
+    /// @param _addr user to which voting power is delegated
+    /// @dev Only callable by the blocklist contract
     function forceUndelegate(address _addr) external override {
         require(msg.sender == blocklist, "Only Blocklist");
         LockedBalance memory locked_ = locked[_addr];
@@ -197,18 +202,18 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     ///       LOCK MANAGEMENT       ///
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
-    /// @notice Returns a user's lock expiration
-    /// @param _addr The address of the user
-    /// @return Expiration of the user's lock
+    /// @notice Returns a lock's expiration
+    /// @param _addr The address of the lock owner
+    /// @return Expiration of the lock
     function lockEnd(address _addr) external view returns (uint256) {
         return locked[_addr].end;
     }
 
-    /// @notice Returns the last available user point for a user
-    /// @param _addr User address
-    /// @return bias i.e. y
-    /// @return slope i.e. linear gradient
-    /// @return ts i.e. time point was logged
+    /// @notice Returns a lock's last available user point
+    /// @param _addr The address of the lock owner
+    /// @return bias The last recorded virtual balance
+    /// @return slope The last recorded linear decay
+    /// @return ts The last recorded timestamp
     function getLastUserPoint(address _addr)
         external
         view
@@ -227,7 +232,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     }
 
     /// @notice Records a checkpoint of both individual and global slope
-    /// @param _addr User address, or address(0) for only global
+    /// @param _addr The address of the lock owner, or address(0) for only global
     /// @param _oldLocked Old amount that user had locked, or null for global
     /// @param _newLocked new amount that user has locked, or null for global
     function _checkpoint(
@@ -405,13 +410,18 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         }
     }
 
-    /// @notice Public function to trigger global checkpoint
+    /// @notice Records a new global checkpoint
     function checkpoint() external {
         LockedBalance memory empty;
         _checkpoint(address(0), empty, empty);
     }
 
-    // See IVotingEscrow for documentation
+    /// @notice Creates a new lock
+    /// @param _value Amount of token to lock
+    /// @param _unlockTime Expiration time of the lock
+    /// @dev `_value` is (unsafely) downcasted from `uint256` to `int128`
+    /// and `_unlockTime` is (unsafely) downcasted from `uint256` to `uint96`
+    /// assuming that the values never reach the respective max values
     function createLock(uint256 _value, uint256 _unlockTime)
         external
         override
@@ -448,8 +458,12 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         );
     }
 
-    // See IVotingEscrow for documentation
-    // @dev A lock is active until both lock.amount==0 and lock.end<=block.timestamp
+    /// @notice Locks more tokens in an existing lock
+    /// @param _value Amount of tokens to add to the lock
+    /// @dev Does not update the lock's expiration.
+    /// Does record a new checkpoint for the lock.
+    /// `_value` is (unsafely) downcasted from `uint256` to `int128` assuming
+    /// that the max value is never reached in practice.
     function increaseAmount(uint256 _value)
         external
         override
@@ -503,7 +517,12 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         emit Deposit(msg.sender, _value, unlockTime, action, block.timestamp);
     }
 
-    // See IVotingEscrow for documentation
+    /// @notice Extends the expiration of an existing lock
+    /// @param _unlockTime New lock expiration time
+    /// @dev Does not update the amount of tokens locked.
+    /// Does record a new checkpoint for the lock.
+    /// `_unlockTime` is (unsafely) downcasted from `uint256` to `uint96`
+    /// assuming that the max value is never reached in practice.
     function increaseUnlockTime(uint256 _unlockTime)
         external
         override
@@ -536,7 +555,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         );
     }
 
-    // See IVotingEscrow for documentation
+    /// @notice Withdraws the tokens of an expired lock.
+    /// Delegated locks need to be undelegated first.
     function withdraw() external override nonReentrant {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
@@ -565,7 +585,10 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     ///         DELEGATION         ///
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
-    // See IVotingEscrow for documentation
+    /// @notice Delegate lock and voting power to another lock.
+    /// The receiving lock needs to have a longer lock duration.
+    /// The delegated lock will inherit the receiving lock's expiration.
+    /// @param _addr The address of the lock owner to which to delegate
     function delegate(address _addr)
         external
         override
@@ -600,8 +623,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     }
 
     // Undelegates sender's lock
-    // @dev Can be executed on expired locks too.
-    // @dev Owner inherits delegatee's unlockTime if it exceeds owner's.
+    // Can be executed on expired locks too.
+    // Owner inherits delegatee's unlockTime if it exceeds owner's.
     function _undelegate() internal {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
@@ -656,7 +679,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     ///         QUIT LOCK          ///
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
-    // See IVotingEscrow for documentation
+    /// @notice Quit an existing lock by withdrawing all tokens less a penalty.
+    /// Use `withdraw` for expired locks.
+    /// @dev Quitters lock expiration remains in place because it might be delegated to
     function quitLock() external override nonReentrant {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
@@ -686,7 +711,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         emit Withdraw(msg.sender, value, LockAction.QUIT, block.timestamp);
     }
 
-    // Calculate penalty rate (decreasing linearly)
+    // Calculate penalty rate.
+    // Penalty rate decreases linearly at the same rate as a lock's voting power
+    // in order to compensate for votes used.
     function _calculatePenaltyRate(uint256 end)
         internal
         view
@@ -696,8 +723,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         return ((end - block.timestamp) * maxPenalty) / MAXTIME;
     }
 
-    /// @notice Collect accumulated penalty from quitters
-    /// @dev Everyone can collect but penalty is sent to `penaltyRecipient`
+    /// @notice Collect accumulated penalty from lock quitters.
+    /// Everyone can collect but penalty is sent to `penaltyRecipient`
     function collectPenalty() external {
         uint256 amount = penaltyAccumulated;
         penaltyAccumulated = 0;
@@ -725,15 +752,14 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
             });
     }
 
-    // @dev Floors a timestamp to the nearest weekly increment
-    // @param _t Timestamp to floor
+    // Floors a timestamp to the nearest weekly increment
     function _floorToWeek(uint256 _t) internal pure returns (uint256) {
         return (_t / WEEK) * WEEK;
     }
 
-    // @dev Uses binarysearch to find the most recent point history preceeding block
-    // @param _block Find the most recent point history before this block
-    // @param _maxEpoch Do not search pointHistories past this index
+    // Uses binarysearch to find the most recent point history preceeding block
+    // Find the most recent point history before _block
+    // Do not search pointHistories past _maxEpoch
     function _findBlockEpoch(uint256 _block, uint256 _maxEpoch)
         internal
         view
@@ -756,9 +782,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         return min;
     }
 
-    // @dev Uses binarysearch to find the most recent user point history preceeding block
-    // @param _addr User for which to search
-    // @param _block Find the most recent point history before this block
+    // Uses binarysearch to find the most recent user point history preceeding block
+    // _addr is the lock owner for which to search
+    // Find the most recent point history before _block
     function _findUserBlockEpoch(address _addr, uint256 _block)
         internal
         view
@@ -781,7 +807,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         return min;
     }
 
-    // See IVotingEscrow for documentation
+    /// @notice Get a lock's current voting power
+    /// @param _owner The address of the lock owner for which to return voting power
+    /// @return Voting power of the lock
     function balanceOf(address _owner) public view override returns (uint256) {
         uint256 epoch = userPointEpoch[_owner];
         if (epoch == 0) {
@@ -799,7 +827,10 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         return uint256(uint128(lastPoint.bias));
     }
 
-    // See IVotingEscrow for documentation
+    /// @notice Get a lock's voting power at a given block number
+    /// @param _owner The address of the lock owner for which to return voting power
+    /// @param _blockNumber The block at which to calculate the lock's voting power
+    /// @return uint256 Voting power of the lock
     function balanceOfAt(address _owner, uint256 _blockNumber)
         public
         view
@@ -853,10 +884,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         }
     }
 
-    /// @notice Calculate total supply of voting power at a given time _t
-    /// @param _point Most recent point before time _t
-    /// @param _t Time at which to calculate supply
-    /// @return totalSupply at given point in time
+    // Calculate total supply of voting power at a given time _t
+    // _point is the most recent point before time _t
+    // _t is the time at which to calculate supply
     function _supplyAt(Point memory _point, uint256 _t)
         internal
         view
@@ -899,14 +929,17 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         return uint256(uint128(lastPoint.bias));
     }
 
-    // See IVotingEscrow for documentation
+    /// @notice Calculate current total supply of voting power
+    /// @return Current totalSupply
     function totalSupply() public view override returns (uint256) {
         uint256 epoch_ = globalEpoch;
         Point memory lastPoint = pointHistory[epoch_];
         return _supplyAt(lastPoint, block.timestamp);
     }
 
-    // See IVotingEscrow for documentation
+    /// @notice Calculate total supply of voting power at a given block number
+    /// @param _blockNumber The block number at which to calculate total supply
+    /// @return totalSupply of voting power at the given block number
     function totalSupplyAt(uint256 _blockNumber)
         public
         view

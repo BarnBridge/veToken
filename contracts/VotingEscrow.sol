@@ -28,7 +28,7 @@ import { IBlocklist } from "./interfaces/IBlocklist.sol";
 /// (see https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy)
 /// and mStable's Solidity translation thereof
 /// (see https://github.com/mstable/mStable-contracts/blob/master/contracts/governance/IncentivisedVotingLockup.sol)
-/// Usage of this contract is not safe with all tokens, specifically
+/// Usage of this contract is not safe with all tokens, specifically:
 /// - Contract does not support tokens with maxSupply>2^128-10^[decimals]
 /// - Contract does not support fee-on-transfer tokens
 /// - Contract may be unsafe for tokens with decimals<6
@@ -179,7 +179,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         emit Unlock();
     }
 
-    /// @notice Remove delegation for blocked contract.
+    /// @notice Remove delegation for blocked contract
     /// @param _addr user to which voting power is delegated
     /// @dev Only callable by the blocklist contract
     function forceUndelegate(address _addr) external override {
@@ -234,7 +234,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     /// @notice Records a checkpoint of both individual and global slope
     /// @param _addr The address of the lock owner, or address(0) for only global
     /// @param _oldLocked Old amount that user had locked, or null for global
-    /// @param _newLocked new amount that user has locked, or null for global
+    /// @param _newLocked New amount that user has locked, or null for global
     function _checkpoint(
         address _addr,
         LockedBalance memory _oldLocked,
@@ -460,10 +460,10 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
 
     /// @notice Locks more tokens in an existing lock
     /// @param _value Amount of tokens to add to the lock
-    /// @dev Does not update the lock's expiration.
-    /// Does record a new checkpoint for the lock.
+    /// @dev Does not update the lock's expiration
+    /// Does record a new checkpoint for the lock
     /// `_value` is (unsafely) downcasted from `uint256` to `int128` assuming
-    /// that the max value is never reached in practice.
+    /// that the max value is never reached in practice
     function increaseAmount(uint256 _value)
         external
         override
@@ -519,10 +519,10 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
 
     /// @notice Extends the expiration of an existing lock
     /// @param _unlockTime New lock expiration time
-    /// @dev Does not update the amount of tokens locked.
-    /// Does record a new checkpoint for the lock.
+    /// @dev Does not update the amount of tokens locked
+    /// Does record a new checkpoint for the lock
     /// `_unlockTime` is (unsafely) downcasted from `uint256` to `uint96`
-    /// assuming that the max value is never reached in practice.
+    /// assuming that the max value is never reached in practice
     function increaseUnlockTime(uint256 _unlockTime)
         external
         override
@@ -555,8 +555,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         );
     }
 
-    /// @notice Withdraws the tokens of an expired lock.
-    /// Delegated locks need to be undelegated first.
+    /// @notice Withdraws the tokens of an expired lock
+    /// Delegated locks need to be undelegated first
     function withdraw() external override nonReentrant {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
@@ -585,9 +585,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     ///         DELEGATION         ///
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
-    /// @notice Delegate lock and voting power to another lock.
-    /// The receiving lock needs to have a longer lock duration.
-    /// The delegated lock will inherit the receiving lock's expiration.
+    /// @notice Delegate lock and voting power to another lock
+    /// The receiving lock needs to have a longer lock duration
+    /// The delegated lock will inherit the receiving lock's expiration
     /// @param _addr The address of the lock owner to which to delegate
     function delegate(address _addr)
         external
@@ -623,8 +623,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     }
 
     // Undelegates sender's lock
-    // Can be executed on expired locks too.
-    // Owner inherits delegatee's unlockTime if it exceeds owner's.
+    // Can be executed on expired locks too
+    // Owner inherits delegatee's unlockTime if it exceeds owner's
     function _undelegate() internal {
         LockedBalance memory locked_ = locked[msg.sender];
         // Validate inputs
@@ -679,8 +679,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     ///         QUIT LOCK          ///
     /// ~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
-    /// @notice Quit an existing lock by withdrawing all tokens less a penalty.
-    /// Use `withdraw` for expired locks.
+    /// @notice Quit an existing lock by withdrawing all tokens less a penalty
+    /// Use `withdraw` for expired locks
     /// @dev Quitters lock expiration remains in place because it might be delegated to
     function quitLock() external override nonReentrant {
         LockedBalance memory locked_ = locked[msg.sender];
@@ -711,9 +711,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         emit Withdraw(msg.sender, value, LockAction.QUIT, block.timestamp);
     }
 
-    // Calculate penalty rate.
+    // Calculate penalty rate
     // Penalty rate decreases linearly at the same rate as a lock's voting power
-    // in order to compensate for votes used.
+    // in order to compensate for votes used
     function _calculatePenaltyRate(uint256 end)
         internal
         view
@@ -723,7 +723,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         return ((end - block.timestamp) * maxPenalty) / MAXTIME;
     }
 
-    /// @notice Collect accumulated penalty from lock quitters.
+    /// @notice Collect accumulated penalty from lock quitters
     /// Everyone can collect but penalty is sent to `penaltyRecipient`
     function collectPenalty() external {
         uint256 amount = penaltyAccumulated;

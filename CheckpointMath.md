@@ -1,4 +1,4 @@
-# veFDT Checkpoint Math
+# DelegatedVotingEscrow Checkpoint Math
 
 ## Definitions
 

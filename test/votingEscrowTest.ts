@@ -7,7 +7,7 @@ import {
   Blocklist,
   MockERC20,
   MockSmartWallet,
-  VotingEscrow,
+  DelegatedVotingEscrow,
 } from "../typechain";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { advanceBlocks } from "./helpers/time";
@@ -20,7 +20,7 @@ import { ONE_WEEK } from "./helpers/constants";
 const { provider } = waffle;
 
 describe("VotingEscrow Tests", function () {
-  let ve: VotingEscrow;
+  let ve: DelegatedVotingEscrow;
   let blocklist: Blocklist;
   let fdtMock: MockERC20;
   let contract: MockSmartWallet;
@@ -71,7 +71,10 @@ describe("VotingEscrow Tests", function () {
     await fdtMock.mint(eve.address, initialFDTuserBal);
 
     // Deploy VE contract
-    const veDeployer = await ethers.getContractFactory("VotingEscrow", admin);
+    const veDeployer = await ethers.getContractFactory(
+      "DelegatedVotingEscrow",
+      admin
+    );
     ve = await veDeployer.deploy(
       admin.address,
       treasury.address,

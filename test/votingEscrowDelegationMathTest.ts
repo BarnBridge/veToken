@@ -23,12 +23,12 @@ import {
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { createSnapshot, restoreSnapshot } from "./helpers/snapshots";
 //import { ethers, waffle, network } from "hardhat";
-import { Blocklist, MockERC20, VotingEscrow } from "../typechain";
+import { Blocklist, MockERC20, DelegatedVotingEscrow } from "../typechain";
 import { BigNumber, BigNumberish } from "ethers";
 import { getBlock } from "./helpers/time";
 import { MockProvider } from "ethereum-waffle";
 
-let votingLockup: VotingEscrow;
+let votingLockup: DelegatedVotingEscrow;
 let blocklist: Blocklist;
 let admin: SignerWithAddress;
 let defaultUser: SignerWithAddress;
@@ -96,7 +96,7 @@ describe("VotingEscrow Delegation Math test", () => {
       .transfer(other.address, simpleToExactAmount(1000, DEFAULT_DECIMALS));
 
     const votingEscrowDeployer = await ethers.getContractFactory(
-      "VotingEscrow",
+      "DelegatedVotingEscrow",
       admin
     );
     votingLockup = await votingEscrowDeployer.deploy(

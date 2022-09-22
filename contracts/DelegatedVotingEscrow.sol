@@ -11,7 +11,9 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     IERC20Metadata
 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
+import {
+    IDelegatedVotingEscrow
+} from "./interfaces/IDelegatedVotingEscrow.sol";
 import { IBlocklist } from "./interfaces/IBlocklist.sol";
 
 /// @title  Delegated Voting Escrow
@@ -32,7 +34,7 @@ import { IBlocklist } from "./interfaces/IBlocklist.sol";
 /// - Contract does not support tokens with maxSupply>2^128-10^[decimals]
 /// - Contract does not support fee-on-transfer tokens
 /// - Contract may be unsafe for tokens with decimals<6
-contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
+contract DelegatedVotingEscrow is IDelegatedVotingEscrow, ReentrancyGuard {
     using SafeERC20 for IERC20;
     // Shared Events
     event Deposit(

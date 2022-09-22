@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.3;
 
-import { IVotingEscrow } from "./interfaces/IVotingEscrow.sol";
+import {
+    IDelegatedVotingEscrow
+} from "./interfaces/IDelegatedVotingEscrow.sol";
 
 /// @title A blocklist for contracts
 /// @notice Allows blocking of contracts. Blocking a contract also
@@ -31,7 +33,7 @@ contract Blocklist {
         require(msg.sender == manager, "Only manager");
         require(addr.code.length > 0, "Only contracts");
         _blocklist[addr] = true;
-        IVotingEscrow(ve).forceUndelegate(addr);
+        IDelegatedVotingEscrow(ve).forceUndelegate(addr);
     }
 
     /// @notice Check an address

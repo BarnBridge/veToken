@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.3;
 
-interface IVotingEscrow {
+interface IDelegatedVotingEscrow {
     function createLock(uint256 _value, uint256 _unlockTime) external;
 
     function increaseAmount(uint256 _value) external;

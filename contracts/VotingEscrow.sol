@@ -64,6 +64,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     uint256 public maxPenalty = 1e18; // penalty for quitters with MAXTIME remaining lock
     uint256 public penaltyAccumulated; // accumulated and unwithdrawn penalty payments
     address public blocklist;
+    uint256 public supply;
 
     // Lock state
     uint256 public globalEpoch;
@@ -448,7 +449,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         _checkpoint(msg.sender, LockedBalance(0, 0, 0, address(0)), locked_);
         // Deposit locked tokens
         token.safeTransferFrom(msg.sender, address(this), _value);
-
+        // Total supply of token deposited
+        supply = supply + _value;
         emit Deposit(
             msg.sender,
             _value,
@@ -513,7 +515,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         _checkpoint(delegatee, locked_, newLocked);
         // Deposit locked tokens
         token.safeTransferFrom(msg.sender, address(this), _value);
-
+        // Total supply of token deposited
+        supply = supply + _value;
         emit Deposit(msg.sender, _value, unlockTime, action, block.timestamp);
     }
 
@@ -578,6 +581,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Send back deposited tokens
         uint256 value = uint256(uint128(locked_.amount));
         token.safeTransfer(msg.sender, value);
+        // Total supply of token deposited
+        supply = supply - value;
         emit Withdraw(msg.sender, value, LockAction.WITHDRAW, block.timestamp);
     }
 
@@ -708,6 +713,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         uint256 remainingAmount = value - penaltyAmount;
         // Send back remaining tokens
         token.safeTransfer(msg.sender, remainingAmount);
+        // Total supply of token deposited
+        supply = supply - value;
         emit Withdraw(msg.sender, value, LockAction.QUIT, block.timestamp);
     }
 

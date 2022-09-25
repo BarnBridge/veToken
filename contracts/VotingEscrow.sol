@@ -437,6 +437,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(unlock_time >= locked_.end, "Only increase lock end"); // from using quitLock, user should increaseAmount instead
         require(unlock_time > block.timestamp, "Only future lock end");
         require(unlock_time <= block.timestamp + MAXTIME, "Exceeds maxtime");
+        // Update total supply of token deposited
+        supply = supply + _value;
         // Update lock and voting power (checkpoint)
         // Casting in the next block is safe given that we check for _value>0 and the
         // totalSupply of tokens is generally significantly lower than the int128.max
@@ -449,8 +451,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         _checkpoint(msg.sender, LockedBalance(0, 0, 0, address(0)), locked_);
         // Deposit locked tokens
         token.safeTransferFrom(msg.sender, address(this), _value);
-        // Total supply of token deposited
-        supply = supply + _value;
         emit Deposit(
             msg.sender,
             _value,
@@ -477,6 +477,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(_value != 0, "Only non zero amount");
         require(locked_.amount > 0, "No lock");
         require(locked_.end > block.timestamp, "Lock expired");
+        // Update total supply of token deposited
+        supply = supply + _value;
         // Update lock
         address delegatee = locked_.delegatee;
         uint256 unlockTime = locked_.end;
@@ -515,8 +517,6 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         _checkpoint(delegatee, locked_, newLocked);
         // Deposit locked tokens
         token.safeTransferFrom(msg.sender, address(this), _value);
-        // Total supply of token deposited
-        supply = supply + _value;
         emit Deposit(msg.sender, _value, unlockTime, action, block.timestamp);
     }
 
@@ -566,6 +566,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(locked_.amount > 0, "No lock");
         require(locked_.end <= block.timestamp, "Lock not expired");
         require(locked_.delegatee == msg.sender, "Lock delegated");
+        // Update total supply of token deposited
+        uint256 value = uint256(uint128(locked_.amount));
+        supply = supply - value;
         // Update lock
         LockedBalance memory newLocked = _copyLock(locked_);
         newLocked.amount = 0;
@@ -579,10 +582,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Both can have >= 0 amount
         _checkpoint(msg.sender, locked_, newLocked);
         // Send back deposited tokens
-        uint256 value = uint256(uint128(locked_.amount));
         token.safeTransfer(msg.sender, value);
-        // Total supply of token deposited
-        supply = supply - value;
         emit Withdraw(msg.sender, value, LockAction.WITHDRAW, block.timestamp);
     }
 
@@ -693,6 +693,9 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         require(locked_.amount > 0, "No lock");
         require(locked_.end > block.timestamp, "Lock expired");
         require(locked_.delegatee == msg.sender, "Lock delegated");
+        // Update total supply of token deposited
+        uint256 value = uint256(uint128(locked_.amount));
+        supply = supply - value;
         // Update lock
         LockedBalance memory newLocked = _copyLock(locked_);
         newLocked.amount = 0;
@@ -706,15 +709,12 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Both can have >= 0 amount
         _checkpoint(msg.sender, locked_, newLocked);
         // apply penalty
-        uint256 value = uint256(uint128(locked_.amount));
         uint256 penaltyRate = _calculatePenaltyRate(locked_.end);
         uint256 penaltyAmount = (value * penaltyRate) / 1e18; // quitlock_penalty is in 18 decimals precision
         penaltyAccumulated = penaltyAccumulated + penaltyAmount;
         uint256 remainingAmount = value - penaltyAmount;
         // Send back remaining tokens
         token.safeTransfer(msg.sender, remainingAmount);
-        // Total supply of token deposited
-        supply = supply - value;
         emit Withdraw(msg.sender, value, LockAction.QUIT, block.timestamp);
     }
 

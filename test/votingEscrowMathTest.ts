@@ -18,6 +18,7 @@ import {
   ONE_HOUR,
   ONE_DAY,
   ONE_YEAR,
+  TWO_YEARS,
   DEFAULT_DECIMALS,
 } from "./helpers/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
@@ -441,7 +442,7 @@ describe("VotingEscrow Math test", () => {
         await expect(
           votingLockup
             .connect(other)
-            .createLock(BN.from(1), start.add(ONE_YEAR.add(ONE_WEEK)))
+            .createLock(BN.from(1), start.add(TWO_YEARS.add(ONE_WEEK)))
         ).to.be.revertedWith("Exceeds maxtime");
       });
     });
@@ -515,7 +516,7 @@ describe("VotingEscrow Math test", () => {
           await expect(
             votingLockup
               .connect(bob)
-              .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK.mul(53)))
+              .increaseUnlockTime((await getTimestamp()).add(ONE_WEEK.mul(105)))
           ).to.be.revertedWith("Exceeds maxtime");
 
           await expect(
@@ -523,7 +524,7 @@ describe("VotingEscrow Math test", () => {
               .connect(david)
               .createLock(
                 stakeAmt1,
-                (await getTimestamp()).add(ONE_WEEK.mul(53))
+                (await getTimestamp()).add(ONE_WEEK.mul(105))
               )
           ).to.be.revertedWith("Exceeds maxtime");
         });

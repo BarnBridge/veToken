@@ -718,6 +718,15 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         emit Withdraw(msg.sender, value, LockAction.QUIT, block.timestamp);
     }
 
+    /// @notice Returns the penalty rate for a given lock expiration
+    /// @param end The lock's expiration
+    /// @return The penalty rate applicable to the lock
+    /// @dev The penalty rate decreases linearly at the same rate as a lock's voting power
+    /// in order to compensate for votes unlocked without committing to the lock expiration
+    function getPenaltyRate(uint256 end) external view returns (uint256) {
+        return _calculatePenaltyRate(end);
+    }
+
     // Calculate penalty rate
     // Penalty rate decreases linearly at the same rate as a lock's voting power
     // in order to compensate for votes used

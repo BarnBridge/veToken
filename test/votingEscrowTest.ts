@@ -43,6 +43,7 @@ describe("VotingEscrow Tests", function () {
   const ZERO_ADDRESS = ethers.constants.AddressZero;
   const WEEK = 7 * 86400;
   const MAXTIME = 365 * 86400;
+  const PRECISION = ethers.constants.WeiPerEther;
 
   let signers: SignerWithAddress[];
 
@@ -188,14 +189,28 @@ describe("VotingEscrow Tests", function () {
 
     it("Alice attempts to quit lock, succeeds with penalty", async () => {
       // Increase time to 2 weeks to lock end
-      await increaseTimeTo((await ve.lockEnd(alice.address)).sub(WEEK * 2));
+      const lockEnd = await ve.lockEnd(alice.address);
+      await increaseTimeTo(lockEnd.sub(WEEK * 2));
+
+      // Check penalty to be paid
+      const penaltyRate = await ve.getPenaltyRate(lockEnd);
+      const expectedPenalty = penaltyRate.mul(lockAmount).div(PRECISION);
+
+      // Quit lock
       await ve.connect(alice).quitLock();
 
-      // Penalty is ~ 3.84% (2/52*100)
+      // Validate penalty is ~ 3.84% (2/52*100)
       assertBNClosePercent(
-        await fdtMock.balanceOf(alice.address),
-        initialFDTuserBal.sub(lockAmount.mul(2).div(MAXTIME)),
-        "0.4"
+        expectedPenalty,
+        lockAmount.mul(WEEK * 2).div(MAXTIME),
+        "0.01"
+      );
+
+      // Validate remaining balance
+      assertBNClosePercent(
+        expectedPenalty,
+        initialFDTuserBal.sub(await fdtMock.balanceOf(alice.address)),
+        "0.01"
       );
     });
 

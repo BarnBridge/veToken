@@ -709,8 +709,8 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         // Both can have >= 0 amount
         _checkpoint(msg.sender, locked_, newLocked);
         // apply penalty
-        uint256 currentPenaltyRate = penaltyRate(locked_.end);
-        uint256 penaltyAmount = (value * currentPenaltyRate) / 1e18; // quitlock_penalty is in 18 decimals precision
+        uint256 penaltyRate = _calculatePenaltyRate(locked_.end);
+        uint256 penaltyAmount = (value * penaltyRate) / 1e18; // quitlock_penalty is in 18 decimals precision
         penaltyAccumulated = penaltyAccumulated + penaltyAmount;
         uint256 remainingAmount = value - penaltyAmount;
         // Send back remaining tokens
@@ -718,12 +718,14 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
         emit Withdraw(msg.sender, value, LockAction.QUIT, block.timestamp);
     }
 
-    /// @notice Returns the penalty rate for a given lock expiration
-    /// @param end The lock's expiration
-    /// @return The penalty rate applicable to the lock
-    /// @dev The penalty rate decreases linearly at the same rate as a lock's voting power
-    /// in order to compensate for votes unlocked without committing to the lock expiration
-    function penaltyRate(uint256 end) public view returns (uint256) {
+    // Calculate penalty rate
+    // Penalty rate decreases linearly at the same rate as a lock's voting power
+    // in order to compensate for votes used
+    function _calculatePenaltyRate(uint256 end)
+        internal
+        view
+        returns (uint256)
+    {
         // We know that end > block.timestamp because expired locks cannot be quitted
         return ((end - block.timestamp) * maxPenalty) / MAXTIME;
     }

@@ -36,6 +36,7 @@ describe("VotingEscrow Tests", function () {
   let charlie: SignerWithAddress;
   let david: SignerWithAddress;
   let eve: SignerWithAddress;
+  let francis: SignerWithAddress;
   const initialFDTuserBal = utils.parseEther("1000");
   const lockAmount = utils.parseEther("100");
   let tx;
@@ -58,7 +59,7 @@ describe("VotingEscrow Tests", function () {
     await createSnapshot(provider);
 
     signers = await ethers.getSigners();
-    [admin, alice, bob, charlie, david, eve, treasury] = signers;
+    [admin, alice, bob, charlie, david, eve, francis, treasury] = signers;
 
     // Deploy FDT contract
     const fdtMockDeployer = await ethers.getContractFactory("MockERC20", admin);
@@ -70,6 +71,7 @@ describe("VotingEscrow Tests", function () {
     await fdtMock.mint(charlie.address, initialFDTuserBal);
     await fdtMock.mint(david.address, initialFDTuserBal);
     await fdtMock.mint(eve.address, initialFDTuserBal);
+    await fdtMock.mint(francis.address, initialFDTuserBal);
 
     // Deploy VE contract
     const veDeployer = await ethers.getContractFactory("VotingEscrow", admin);
@@ -97,6 +99,7 @@ describe("VotingEscrow Tests", function () {
     await fdtMock.setAllowance(charlie.address, ve.address, MAX);
     await fdtMock.setAllowance(david.address, ve.address, MAX);
     await fdtMock.setAllowance(eve.address, ve.address, MAX);
+    await fdtMock.setAllowance(francis.address, ve.address, MAX);
 
     // Deploy malicious contracts
     const contractDeployer = await ethers.getContractFactory(
@@ -779,6 +782,7 @@ describe("VotingEscrow Tests", function () {
       await ve.connect(alice).createLock(lockAmount, lockTime1);
       await ve.connect(bob).createLock(lockAmount, lockTime1);
       await ve.connect(charlie).createLock(lockAmount, lockTime1);
+      await ve.connect(francis).createLock(lockAmount, lockTime1);
 
       // 1 year lock
       await ve.connect(david).createLock(lockAmount, lockTime2);
@@ -892,6 +896,32 @@ describe("VotingEscrow Tests", function () {
       assertBNClosePercent(
         expectedPenaltyCharlie,
         initialFDTuserBal.sub(await fdtMock.balanceOf(charlie.address)),
+        "0.01"
+      );
+    });
+
+    it("Francis quitlocks 1 week before end", async () => {
+      // Francis would have ~1 week left
+      const lockEndFrancis = await ve.lockEnd(francis.address);
+      await increaseTimeTo(lockEndFrancis.sub(WEEK * 1));
+
+      const penaltyRateFrancis = await ve.getPenaltyRate(lockEndFrancis);
+      const expectedPenaltyFrancis = penaltyRateFrancis
+        .mul(lockAmount)
+        .div(PRECISION);
+
+      await ve.connect(francis).quitLock();
+
+      assertBNClosePercent(
+        expectedPenaltyFrancis,
+        lockAmount.mul(WEEK * 1).div(MAXTIME),
+        "0.01"
+      );
+
+      // Validate remaining balance
+      assertBNClosePercent(
+        expectedPenaltyFrancis,
+        initialFDTuserBal.sub(await fdtMock.balanceOf(francis.address)),
         "0.01"
       );
     });

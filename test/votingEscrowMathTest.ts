@@ -42,6 +42,7 @@ let bob: SignerWithAddress;
 let charlie: SignerWithAddress;
 let david: SignerWithAddress;
 let eve: SignerWithAddress;
+let francis: SignerWithAddress;
 let treasury: SignerWithAddress;
 //let nexus: Nexus
 let fdtMock: MockERC20;
@@ -65,6 +66,7 @@ describe("VotingEscrow Math test", () => {
       charlie,
       david,
       eve,
+      francis,
       treasury,
     ] = accounts;
   });
@@ -335,6 +337,9 @@ describe("VotingEscrow Math test", () => {
         .connect(fundManager)
         .transfer(eve.address, simpleToExactAmount(1, 22));
       await fdtMock
+        .connect(fundManager)
+        .transfer(francis.address, simpleToExactAmount(1, 22));
+      await fdtMock
         .connect(alice)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
       await fdtMock
@@ -348,6 +353,9 @@ describe("VotingEscrow Math test", () => {
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
       await fdtMock
         .connect(eve)
+        .approve(votingLockup.address, simpleToExactAmount(100, 21));
+      await fdtMock
+        .connect(francis)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
     });
     describe("checking initial settings", () => {
@@ -387,12 +395,15 @@ describe("VotingEscrow Math test", () => {
         await votingLockup
           .connect(eve)
           .createLock(stakeAmt1, start.add(ONE_WEEK));
+        await votingLockup
+          .connect(francis)
+          .createLock(stakeAmt1, start.add(TWO_YEARS));
 
         const aliceData = await snapshotData(alice);
         const bobData = await snapshotData(bob);
         const charlieData = await snapshotData(charlie);
         const eveData = await snapshotData(eve);
-
+        const francisData = await snapshotData(francis);
         // Bias
         assertBNClosePercent(
           aliceData.userLastPoint.bias,
@@ -407,6 +418,16 @@ describe("VotingEscrow Math test", () => {
         assertBNClosePercent(
           charlieData.userLastPoint.bias,
           calcBias(stakeAmt1, ONE_WEEK.mul(26)),
+          "0.4"
+        );
+        assertBNClosePercent(
+          eveData.userLastPoint.bias,
+          calcBias(stakeAmt1, ONE_WEEK),
+          "0.4"
+        );
+        assertBNClosePercent(
+          francisData.userLastPoint.bias,
+          calcBias(stakeAmt1, TWO_YEARS),
           "0.4"
         );
 
@@ -642,6 +663,21 @@ describe("VotingEscrow Math test", () => {
         expect(eveAfter.userLastPoint.slope).eq(BN.from(0));
         expect(eveAfter.userLocked.amount).eq(BN.from(0));
         expect(eveAfter.userLocked.end).eq(BN.from(0));
+
+        await increaseTime(ONE_WEEK.mul(77));
+        const francisBefore = await snapshotData(francis);
+        await votingLockup.connect(francis).withdraw();
+        const francisAfter = await snapshotData(francis);
+
+        expect(francisAfter.senderStakingTokenBalance).eq(
+          francisBefore.senderStakingTokenBalance.add(
+            francisBefore.userLocked.amount
+          )
+        );
+        expect(francisAfter.userLastPoint.bias).eq(BN.from(0));
+        expect(francisAfter.userLastPoint.slope).eq(BN.from(0));
+        expect(francisAfter.userLocked.amount).eq(BN.from(0));
+        expect(francisAfter.userLocked.end).eq(BN.from(0));
       });
     });
 

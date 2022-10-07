@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { network, ethers } from "hardhat";
 import { expect } from "chai";
-import { assertBNClose, assertBNClosePercent } from "./helpers/assertions";
+import { assertBNClosePercent } from "./helpers/assertions";
 //import { MassetMachine, StandardAccounts } from "./utils/machines"
 import {
   advanceBlock,
@@ -24,9 +24,7 @@ import {
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 //import { ethers, waffle, network } from "hardhat";
 import { Blocklist, MockERC20, VotingEscrow } from "../typechain";
-import { BigNumber, BigNumberish } from "ethers";
-import { getBlock } from "./helpers/time";
-import { MockProvider } from "ethereum-waffle";
+import { BigNumber } from "ethers";
 
 //import { Account } from "types"
 
@@ -72,11 +70,6 @@ describe("VotingEscrow Math test", () => {
   });
 
   const isCoverage = network.name === "coverage";
-
-  // const fundVotingLockup = async (funding = simpleToExactAmount(100, DEFAULT_DECIMALS)) => {
-  //     await mta.connect(fundManager).transfer(votingLockup.address, funding)
-  //     await votingLockup.connect(fundManager).notifyRewardAmount(funding)
-  // }
 
   const calculateStaticBalance = async (
     lockupLength: BN,
@@ -155,9 +148,6 @@ describe("VotingEscrow Math test", () => {
         votingLockup.address,
         simpleToExactAmount(10000, DEFAULT_DECIMALS)
       );
-    // if (initialRewardFunding.gt(0)) {
-    //     fundVotingLockup(initialRewardFunding)
-    // }
   };
 
   describe("checking balances & total supply", () => {
@@ -226,22 +216,11 @@ describe("VotingEscrow Math test", () => {
   interface ContractData {
     epoch: BN;
     userEpoch: BN;
-    // endTime: BN
-    //  totalStaticWeight: BN
-    //  userStaticWeight: BN
     userLocked: LockedBalance;
     userLastPoint: Point;
     lastPoint: Point;
     senderStakingTokenBalance: BN;
     contractStakingTokenBalance: BN;
-    // userRewardPerTokenPaid: BN
-    // beneficiaryRewardsEarned: BN
-    // rewardPerTokenStored: BN
-    //rewardRate: BN
-    //rewardsPaid: BN
-    // lastUpdateTime: BN
-    // lastTimeRewardApplicable: BN
-    // periodFinishTime: BN
   }
 
   const snapshotData = async (sender = defaultUser): Promise<ContractData> => {
@@ -253,9 +232,6 @@ describe("VotingEscrow Math test", () => {
     return {
       epoch,
       userEpoch,
-      //   endTime: await votingLockup.END(),
-      //totalStaticWeight: await votingLockup.totalStaticWeight(),
-      // userStaticWeight: await votingLockup.staticBalanceOf(sender.address),
       userLocked: {
         amount: locked[0],
         delegated: locked[1],
@@ -273,18 +249,10 @@ describe("VotingEscrow Math test", () => {
         ts: lastPoint[2],
         blk: lastPoint[3],
       },
-      //userRewardPerTokenPaid: await votingLockup.userRewardPerTokenPaid(sender.address),
       senderStakingTokenBalance: await fdtMock.balanceOf(sender.address),
       contractStakingTokenBalance: await fdtMock.balanceOf(
         votingLockup.address
       ),
-      //beneficiaryRewardsEarned: await votingLockup.rewards(sender.address),
-      // rewardPerTokenStored: await votingLockup.rewardPerTokenStored(),
-      // rewardRate: await votingLockup.rewardRate(),
-      // rewardsPaid: await votingLockup.rewardsPaid(sender.address),
-      // lastUpdateTime: await votingLockup.lastUpdateTime(),
-      // lastTimeRewardApplicable: await votingLockup.lastTimeRewardApplicable(),
-      // periodFinishTime: await votingLockup.periodFinish(),
     };
   };
 
@@ -309,14 +277,6 @@ describe("VotingEscrow Math test", () => {
     let start: BigNumber;
     let maxTime: BigNumber;
     before(async () => {
-      //console.log(await ethers.provider.getBlockNumber())
-      //console.log(await ethers.provider.getBlock(await ethers.provider.getBlockNumber()));
-      // alice = sa.default
-      // let bob = accounts[2]
-      // charlie = sa.dummy2
-      // david = sa.dummy3
-      // eve = sa.dummy4
-
       await goToNextUnixWeekStart();
       start = await getTimestamp();
       await deployFresh(simpleToExactAmount(100, DEFAULT_DECIMALS));
@@ -359,14 +319,6 @@ describe("VotingEscrow Math test", () => {
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
     });
     describe("checking initial settings", () => {
-      // it("should set END date one year in advance", async () => {
-      //     const endTime = await votingLockup.END()
-      //     assertBNClose(endTime, (await getTimestamp()).add(ONE_YEAR), 100)
-      // })
-      // it("sets & gets duration", async () => {
-      //     const duration = await votingLockup.getDuration()
-      //     expect(duration).eq(ONE_WEEK)
-      // })
       it("sets ERC20 details", async () => {
         const name = await votingLockup.name();
         const symbol = await votingLockup.symbol();
@@ -430,17 +382,6 @@ describe("VotingEscrow Math test", () => {
           calcBias(stakeAmt1, TWO_YEARS),
           "0.4"
         );
-
-        // // Static Balance
-        // assertBNClosePercent(aliceData.userStaticWeight, await calculateStaticBalance(ONE_YEAR, stakeAmt1), "0.4")
-        // assertBNClosePercent(bobData.userStaticWeight, await calculateStaticBalance(ONE_WEEK.mul(26), stakeAmt2), "0.4")
-        // assertBNClosePercent(charlieData.userStaticWeight, await calculateStaticBalance(ONE_WEEK.mul(26), stakeAmt1), "0.4")
-        // expect(charlieData.totalStaticWeight).eq(
-        //     aliceData.userStaticWeight
-        //         .add(bobData.userStaticWeight)
-        //         .add(charlieData.userStaticWeight)
-        //         .add(eveData.userStaticWeight),
-        // )
       });
       it("rejects if the params are wrong", async () => {
         await expect(
@@ -471,7 +412,6 @@ describe("VotingEscrow Math test", () => {
     describe("extending lock", () => {
       before(async () => {
         await increaseTime(ONE_WEEK.mul(12));
-
         // Eves lock is now expired
       });
       describe("by amount", () => {
@@ -489,7 +429,6 @@ describe("VotingEscrow Math test", () => {
             alice.address,
             await latestBlockBN()
           );
-          // await votingLockup.connect(alice).quitLock();
           await votingLockup.connect(alice).increaseAmount(stakeAmt1);
           const aliceBalanceAfter = await votingLockup.balanceOfAt(
             alice.address,
@@ -505,15 +444,6 @@ describe("VotingEscrow Math test", () => {
           const charlieSnapBefore = await snapshotData(charlie);
           await votingLockup.connect(charlie).increaseAmount(stakeAmt2);
           const charlieSnapAfter = await snapshotData(charlie);
-
-          // expect(charlieSnapAfter.totalStaticWeight).eq(
-          //     charlieSnapBefore.totalStaticWeight.sub(charlieSnapBefore.userStaticWeight).add(charlieSnapAfter.userStaticWeight),
-          // )
-          // assertBNClosePercent(
-          //     charlieSnapAfter.userStaticWeight,
-          //     await calculateStaticBalance(ONE_WEEK.mul(14), stakeAmt2.add(stakeAmt1)),
-          //     "0.4",
-          // )
         });
       });
 
@@ -552,17 +482,11 @@ describe("VotingEscrow Math test", () => {
         it("allows user to extend lock", async () => {
           await goToNextUnixWeekStart();
           const bobSnapBefore = await snapshotData(bob);
-          //const len = bobSnapBefore.endTime.sub(await getTimestamp())
           await votingLockup
             .connect(bob)
             .increaseUnlockTime(start.add(ONE_YEAR));
 
           const bobSnapAfter = await snapshotData(bob);
-
-          // expect(bobSnapAfter.totalStaticWeight).eq(
-          //     bobSnapBefore.totalStaticWeight.sub(bobSnapBefore.userStaticWeight).add(bobSnapAfter.userStaticWeight),
-          // )
-          // assertBNClosePercent(bobSnapAfter.userStaticWeight, await calculateStaticBalance(len, stakeAmt2), "0.4")
         });
       });
     });
@@ -586,7 +510,6 @@ describe("VotingEscrow Math test", () => {
         const after = await snapshotData(alice);
 
         expect(after.epoch).eq(before.epoch.add(1));
-        //expect(after.totalStaticWeight).eq(before.totalStaticWeight)
         expect(after.lastPoint.bias).lt(before.lastPoint.bias);
         expect(after.lastPoint.slope).eq(before.lastPoint.slope);
         expect(after.lastPoint.blk).eq(BN.from((await latestBlock()).number));
@@ -620,7 +543,6 @@ describe("VotingEscrow Math test", () => {
         await votingLockup.connect(david).withdraw();
         const davidAfter = await snapshotData(david);
 
-        // expect(davidAfter.totalStaticWeight).eq(davidBefore.totalStaticWeight.sub(davidBefore.userStaticWeight))
         expect(davidAfter.senderStakingTokenBalance).eq(
           davidBefore.senderStakingTokenBalance.add(
             davidBefore.userLocked.amount
@@ -631,31 +553,13 @@ describe("VotingEscrow Math test", () => {
         expect(davidAfter.userLocked.amount).eq(BN.from(0));
         expect(davidAfter.userLocked.end).eq(BN.from(0));
       });
-      // cant eject a user if they haven't finished lockup yet
-      // it("kicks a user and withdraws their stake", async () => {
-      //     // charlie is ejected
-      //     const charlieBefore = await snapshotData(charlie)
-      //     await votingLockup.connect(david).eject(charlie.address)
-      //     const charlieAfter = await snapshotData(charlie)
 
-      //     //expect(charlieAfter.totalStaticWeight).eq(charlieBefore.totalStaticWeight.sub(charlieBefore.userStaticWeight))
-      //     expect(charlieAfter.senderStakingTokenBalance).eq(
-      //         charlieBefore.senderStakingTokenBalance.add(charlieBefore.userLocked.amount),
-      //     )
-      //     expect(charlieAfter.userLastPoint.bias).eq(BN.from(0))
-      //     expect(charlieAfter.userLastPoint.slope).eq(BN.from(0))
-      //     expect(charlieAfter.userLocked.amount).eq(BN.from(0))
-      //     expect(charlieAfter.userLocked.end).eq(BN.from(0))
-
-      //     await expect(votingLockup.connect(bob.signer).eject(alice.address)).to.be.revertedWith("Users lock didn't expire")
-      // })
       it("fully exits the system", async () => {
         // eve exits
         const eveBefore = await snapshotData(eve);
         await votingLockup.connect(eve).withdraw();
         const eveAfter = await snapshotData(eve);
 
-        //expect(eveAfter.totalStaticWeight).eq(eveBefore.totalStaticWeight.sub(eveBefore.userStaticWeight))
         expect(eveAfter.senderStakingTokenBalance).eq(
           eveBefore.senderStakingTokenBalance.add(eveBefore.userLocked.amount)
         );
@@ -680,55 +584,10 @@ describe("VotingEscrow Math test", () => {
         expect(francisAfter.userLocked.end).eq(BN.from(0));
       });
     });
-
-    // describe("expiring the contract", () => {
-    //     // before(async () => {
-    //     //   //  await fundVotingLockup(simpleToExactAmount(1, DEFAULT_DECIMALS))
-    //     // })
-    //     // cant stake after expiry
-    //     // cant notify after expiry
-    //     it("must be done after final period finishes", async () => {
-    //         await expect(votingLockup.connect(sa.governor.signer).expireContract()).to.be.revertedWith("Period must be over")
-    //         await increaseTime(ONE_WEEK.mul(2))
-
-    //         await expect(votingLockup.connect(alice.signer).withdraw()).to.be.revertedWith("The lock didn't expire")
-
-    //         await votingLockup.connect(sa.governor.signer).expireContract()
-    //         expect(await votingLockup.expired()).eq(true)
-    //     })
-    //     it("expires the contract and unlocks all stakes", async () => {
-    //         await expect(
-    //             votingLockup.connect(other).createLock(BN.from(1), (await getTimestamp()).add(ONE_WEEK)),
-    //         ).to.be.revertedWith("Contract is expired")
-    //         await votingLockup.connect(alice.signer).exit()
-    //         await votingLockup.connect(bob.signer).exit()
-    //         await votingLockup.connect(charlie.signer).claimReward()
-    //         await votingLockup.connect(david.signer).claimReward()
-
-    //         const aliceAfter = await snapshotData(alice)
-    //         const bobAfter = await snapshotData(bob)
-    //         const charlieAfter = await snapshotData(charlie)
-    //         const davidAfter = await snapshotData(david)
-    //         const eveAfter = await snapshotData(eve)
-    //         expect(aliceAfter.userLocked.amount).eq(BN.from(0))
-    //         expect(aliceAfter.userLocked.end).eq(BN.from(0))
-
-    //         assertBNClosePercent(
-    //             simpleToExactAmount(101, DEFAULT_DECIMALS),
-    //             aliceAfter.rewardsPaid
-    //                 .add(bobAfter.rewardsPaid)
-    //                 .add(charlieAfter.rewardsPaid)
-    //                 .add(davidAfter.rewardsPaid)
-    //                 .add(eveAfter.rewardsPaid),
-    //             "0.0001",
-    //         )
-    //     })
-    // })
   });
 
   // Integration test ported from
   // https://github.com/curvefi/curve-dao-contracts/blob/master/tests/integration/VotingEscrow/test_votingLockup.py
-  // Added reward claiming & static balance analysis
   describe("testing voting powers changing", () => {
     before(async () => {
       await deployFresh();
@@ -762,9 +621,6 @@ describe("VotingEscrow Math test", () => {
      *
      * After the test is done, check all over again with balanceOfAt / totalSupplyAt
      *
-     * Rewards for Week 1 = 1000 (Alice = 100%)
-     * Rewards for Week 2 = 1000 (Alice = 66%, Bob = 33%)
-     * Rewards = [1666.666, 333.333]
      */
 
     it("calculates voting weights on a rolling basis", async () => {
@@ -773,8 +629,6 @@ describe("VotingEscrow Math test", () => {
        */
       const MAXTIME = await votingLockup.MAXTIME();
       const tolerance = "0.04"; // 0.04% | 0.00004 | 4e14
-      // const alice = sa.dummy1
-      // const bob = sa.dummy2
       const amount = simpleToExactAmount(1000, DEFAULT_DECIMALS);
       await fdtMock.connect(fundManager).transfer(alice.address, amount.mul(5));
       await fdtMock.connect(fundManager).transfer(bob.address, amount.mul(5));
@@ -786,8 +640,6 @@ describe("VotingEscrow Math test", () => {
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
       expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
       expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
-      // expect(await votingLockup.staticBalanceOf(bob.address)).eq(BN.from(0))
-      // expect(await votingLockup.totalStaticWeight()).eq(BN.from(0))
 
       /**
        * BEGIN PERIOD 1
@@ -797,7 +649,6 @@ describe("VotingEscrow Math test", () => {
 
       await goToNextUnixWeekStart();
       await increaseTime(ONE_HOUR);
-      // await fundVotingLockup(amount)
 
       stages["before_deposits"] = [
         BN.from((await latestBlock()).number),
@@ -812,15 +663,6 @@ describe("VotingEscrow Math test", () => {
         await getTimestamp(),
       ];
 
-      // assertBNClosePercent(
-      //     await votingLockup.staticBalanceOf(alice.address),
-      //     await calculateStaticBalance(ONE_WEEK.sub(ONE_HOUR), amount),
-      //     "0.1",
-      // )
-      // expect(await votingLockup.totalStaticWeight()).eq(
-      //     await votingLockup.staticBalanceOf(alice.address),
-      //     "Total static weight should consist of only alice",
-      // )
       await increaseTime(ONE_HOUR);
       await advanceBlock();
       assertBNClosePercent(
@@ -876,15 +718,7 @@ describe("VotingEscrow Math test", () => {
       await increaseTime(ONE_HOUR);
 
       expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
-      // assertBNClosePercent(
-      //     await votingLockup.staticBalanceOf(alice.address),
-      //     await calculateStaticBalance(ONE_WEEK.sub(ONE_HOUR), amount),
-      //     "0.1",
-      // )
-      // expect(await votingLockup.totalStaticWeight()).eq(
-      //     await votingLockup.staticBalanceOf(alice.address),
-      //     "Total static weight should consist of only alice",
-      // )
+
       await votingLockup.connect(alice).withdraw();
 
       stages["alice_withdraw"] = [
@@ -894,8 +728,6 @@ describe("VotingEscrow Math test", () => {
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
       expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
       expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
-      //expect(await votingLockup.staticBalanceOf(alice.address)).eq(BN.from(0))
-      //expect(await votingLockup.totalStaticWeight()).eq(BN.from(0))
 
       await increaseTime(ONE_HOUR);
       await advanceBlock();
@@ -905,7 +737,6 @@ describe("VotingEscrow Math test", () => {
        * Next week (for round counting)
        */
       await goToNextUnixWeekStart();
-      //await fundVotingLockup(amount)
 
       await votingLockup
         .connect(alice)
@@ -950,13 +781,6 @@ describe("VotingEscrow Math test", () => {
         amount.div(MAXTIME).mul(ONE_WEEK),
         tolerance
       );
-      // let aliceStatic = await votingLockup.staticBalanceOf(alice.address)
-      // let bobStatic = await votingLockup.staticBalanceOf(bob.address)
-      // let totalStatic = await votingLockup.totalStaticWeight()
-
-      // assertBNClosePercent(aliceStatic, await calculateStaticBalance(ONE_WEEK.mul(2), amount), "0.1")
-      // assertBNClosePercent(bobStatic, await calculateStaticBalance(ONE_WEEK, amount), "0.1")
-      // expect(totalStatic).eq(aliceStatic.add(bobStatic))
 
       t0 = await getTimestamp();
       await increaseTime(ONE_HOUR);
@@ -1016,14 +840,6 @@ describe("VotingEscrow Math test", () => {
       );
       expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
 
-      // aliceStatic = await votingLockup.staticBalanceOf(alice.address)
-      // bobStatic = await votingLockup.staticBalanceOf(bob.address)
-      // totalStatic = await votingLockup.totalStaticWeight()
-
-      // assertBNClosePercent(aliceStatic, await calculateStaticBalance(ONE_WEEK.mul(2), amount), "0.1")
-      // expect(bobStatic).eq(BN.from(0))
-      // expect(totalStatic).eq(aliceStatic)
-
       await increaseTime(ONE_HOUR);
       await advanceBlock();
 
@@ -1062,18 +878,9 @@ describe("VotingEscrow Math test", () => {
         await getTimestamp(),
       ];
 
-      // aliceStatic = await votingLockup.staticBalanceOf(alice.address)
-      // bobStatic = await votingLockup.staticBalanceOf(bob.address)
-      // totalStatic = await votingLockup.totalStaticWeight()
-
-      // expect(aliceStatic).eq(BN.from(0))
-      // expect(bobStatic).eq(BN.from(0))
-      // expect(totalStatic).eq(BN.from(0))
-
       await increaseTime(ONE_HOUR);
       await advanceBlock();
 
-      // votingLockup.connect(bob.signer).withdraw();
       stages["bob_withdraw_2"] = [
         BN.from((await latestBlock()).number),
         await getTimestamp(),
@@ -1082,22 +889,6 @@ describe("VotingEscrow Math test", () => {
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
       expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
       expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
-
-      //const aliceRewardsEarned1 = await votingLockup.rewardsPaid(alice.address)
-      // const aliceBalBefore = await mta.balanceOf(alice.address)
-      // const bobBalBefore = await mta.balanceOf(bob.address)
-      // await votingLockup.connect(alice.signer).claimReward()
-      // await votingLockup.connect(bob.signer).claimReward()
-      // const aliceRewardsEarned2 = await votingLockup.rewardsPaid(alice.address)
-      // const bobRewardsEarned = await votingLockup.rewardsPaid(bob.address)
-
-      // assertBNClosePercent(aliceRewardsEarned1, simpleToExactAmount("1000", DEFAULT_DECIMALS), "0.01")
-      // assertBNClosePercent(aliceRewardsEarned2, simpleToExactAmount("1585.788", DEFAULT_DECIMALS), "0.01")
-      // assertBNClosePercent(bobRewardsEarned, simpleToExactAmount("414.212", DEFAULT_DECIMALS), "0.01")
-      // assertBNClosePercent(aliceRewardsEarned2.add(bobRewardsEarned), amount.mul(2), "0.0005")
-
-      // expect(await mta.balanceOf(alice.address)).eq(aliceBalBefore.add(aliceRewardsEarned2.sub(aliceRewardsEarned1)))
-      // expect(await mta.balanceOf(bob.address)).eq(bobBalBefore.add(bobRewardsEarned))
 
       /**
        * END OF INTERACTION

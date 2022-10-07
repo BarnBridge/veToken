@@ -57,7 +57,7 @@ contract VotingEscrow is IVotingEscrow, ReentrancyGuard {
     // Shared global state
     IERC20 public immutable token;
     uint256 public constant WEEK = 7 days;
-    uint256 public constant MAXTIME = 365 days;
+    uint256 public constant MAXTIME = 730 days;
     uint256 public constant MULTIPLIER = 1e18;
     address public owner;
     address public penaltyRecipient; // receives collected penalty payments

@@ -29,6 +29,7 @@ export const FIVE_DAYS = BN.from(60 * 60 * 24 * 5);
 export const TEN_DAYS = BN.from(60 * 60 * 24 * 10);
 export const ONE_WEEK = BN.from(60 * 60 * 24 * 7);
 export const ONE_YEAR = BN.from(60 * 60 * 24 * 365);
+export const TWO_YEARS = BN.from(60 * 60 * 24 * 365 * 2);
 
 export const KEY_SAVINGS_MANAGER = utils.keccak256(
   utils.toUtf8Bytes("SavingsManager")

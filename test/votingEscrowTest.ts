@@ -36,13 +36,14 @@ describe("VotingEscrow Tests", function () {
   let charlie: SignerWithAddress;
   let david: SignerWithAddress;
   let eve: SignerWithAddress;
+  let francis: SignerWithAddress;
   const initialFDTuserBal = utils.parseEther("1000");
   const lockAmount = utils.parseEther("100");
   let tx;
   const MAX = ethers.constants.MaxUint256;
   const ZERO_ADDRESS = ethers.constants.AddressZero;
   const WEEK = 7 * 86400;
-  const MAXTIME = 365 * 86400;
+  const MAXTIME = 2 * 365 * 86400; // 2 years
   const PRECISION = ethers.constants.WeiPerEther;
 
   let signers: SignerWithAddress[];
@@ -58,7 +59,7 @@ describe("VotingEscrow Tests", function () {
     await createSnapshot(provider);
 
     signers = await ethers.getSigners();
-    [admin, alice, bob, charlie, david, eve, treasury] = signers;
+    [admin, alice, bob, charlie, david, eve, francis, treasury] = signers;
 
     // Deploy FDT contract
     const fdtMockDeployer = await ethers.getContractFactory("MockERC20", admin);
@@ -70,6 +71,7 @@ describe("VotingEscrow Tests", function () {
     await fdtMock.mint(charlie.address, initialFDTuserBal);
     await fdtMock.mint(david.address, initialFDTuserBal);
     await fdtMock.mint(eve.address, initialFDTuserBal);
+    await fdtMock.mint(francis.address, initialFDTuserBal);
 
     // Deploy VE contract
     const veDeployer = await ethers.getContractFactory("VotingEscrow", admin);
@@ -97,6 +99,7 @@ describe("VotingEscrow Tests", function () {
     await fdtMock.setAllowance(charlie.address, ve.address, MAX);
     await fdtMock.setAllowance(david.address, ve.address, MAX);
     await fdtMock.setAllowance(eve.address, ve.address, MAX);
+    await fdtMock.setAllowance(francis.address, ve.address, MAX);
 
     // Deploy malicious contracts
     const contractDeployer = await ethers.getContractFactory(
@@ -771,64 +774,155 @@ describe("VotingEscrow Tests", function () {
   describe("Quitlock flow", async () => {
     it("Alice, Bob, Charlie, David and Eve lock FDT in ve", async () => {
       await createSnapshot(provider);
-      // MAXTIME => 1 year
+      // MAXTIME => 2 years
       const lockTime1 = MAXTIME + (await getTimestamp());
       const lockTime2 = MAXTIME / 2 + (await getTimestamp());
 
-      // 1 year lock
+      // 2 years lock
       await ve.connect(alice).createLock(lockAmount, lockTime1);
       await ve.connect(bob).createLock(lockAmount, lockTime1);
       await ve.connect(charlie).createLock(lockAmount, lockTime1);
+      await ve.connect(francis).createLock(lockAmount, lockTime1);
 
-      // 6 month lock
+      // 1 year lock
       await ve.connect(david).createLock(lockAmount, lockTime2);
       await ve.connect(eve).createLock(lockAmount, lockTime2);
     });
 
     it("Alice and David quitlocks after ~3 months", async () => {
-      await increaseTime(ONE_WEEK.mul(13));
+      // Alice would have ~91 weeks left
+      const lockEnd = await ve.lockEnd(alice.address);
+      await increaseTimeTo(lockEnd.sub(WEEK * 91));
+
       await ve.connect(alice).quitLock();
-      // Alice would have ~39 weeks left
+      const penaltyRate = await ve.getPenaltyRate(lockEnd);
+      const expectedPenalty = penaltyRate.mul(lockAmount).div(PRECISION);
+      // Check penalty to be paid
       assertBNClosePercent(
-        await fdtMock.balanceOf(alice.address),
-        initialFDTuserBal.sub(lockAmount.mul(ONE_WEEK.mul(39)).div(MAXTIME)),
-        "0.5"
+        expectedPenalty,
+        lockAmount.mul(WEEK * 91).div(MAXTIME),
+        "0.01"
       );
-      // David would have ~13 weeks left
+
+      // Validate remaining balance
+      assertBNClosePercent(
+        expectedPenalty,
+        initialFDTuserBal.sub(await fdtMock.balanceOf(alice.address)),
+        "0.01"
+      );
+
+      const lockEndDavid = await ve.lockEnd(david.address);
+      const penaltyRateDavid = await ve.getPenaltyRate(lockEndDavid);
+      const expectedPenaltyDavid = penaltyRateDavid
+        .mul(lockAmount)
+        .div(PRECISION);
+
+      // David would have ~39 weeks left
       await ve.connect(david).quitLock();
       assertBNClosePercent(
-        await fdtMock.balanceOf(david.address),
-        initialFDTuserBal.sub(lockAmount.mul(ONE_WEEK.mul(13)).div(MAXTIME)),
-        "0.5"
+        expectedPenaltyDavid,
+        lockAmount.mul(WEEK * 39).div(MAXTIME),
+        "0.01"
+      );
+      // Validate remaining balance
+      assertBNClosePercent(
+        expectedPenaltyDavid,
+        initialFDTuserBal.sub(await fdtMock.balanceOf(david.address)),
+        "0.01"
       );
     });
 
     it("Bob and Eve quitlocks after ~ 4 months", async () => {
-      await increaseTime(ONE_WEEK.mul(4));
+      // Bob would have ~87 weeks left
+      const lockEndBob = await ve.lockEnd(bob.address);
+      await increaseTimeTo(lockEndBob.sub(WEEK * 87));
+
+      const penaltyRateBob = await ve.getPenaltyRate(lockEndBob);
+      const expectedPenaltyBob = penaltyRateBob.mul(lockAmount).div(PRECISION);
+
       await ve.connect(bob).quitLock();
-      // Bob would have ~35 weeks left
+
       assertBNClosePercent(
-        await fdtMock.balanceOf(bob.address),
-        initialFDTuserBal.sub(lockAmount.mul(ONE_WEEK.mul(35)).div(MAXTIME)),
-        "0.5"
+        expectedPenaltyBob,
+        lockAmount.mul(WEEK * 87).div(MAXTIME),
+        "0.01"
       );
-      // David would have ~9 weeks left
-      await ve.connect(eve).quitLock();
+
+      // Validate remaining balance
       assertBNClosePercent(
-        await fdtMock.balanceOf(eve.address),
-        initialFDTuserBal.sub(lockAmount.mul(ONE_WEEK.mul(9)).div(MAXTIME)),
-        "0.5"
+        expectedPenaltyBob,
+        initialFDTuserBal.sub(await fdtMock.balanceOf(bob.address)),
+        "0.01"
+      );
+
+      const lockEndEve = await ve.lockEnd(eve.address);
+      const penaltyRateEve = await ve.getPenaltyRate(lockEndEve);
+      const expectedPenaltyEve = penaltyRateEve.mul(lockAmount).div(PRECISION);
+      // Eve would have ~35 weeks left
+      await ve.connect(eve).quitLock();
+
+      assertBNClosePercent(
+        expectedPenaltyEve,
+        lockAmount.mul(WEEK * 35).div(MAXTIME),
+        "0.01"
+      );
+      // Validate remaining balance
+      assertBNClosePercent(
+        expectedPenaltyEve,
+        initialFDTuserBal.sub(await fdtMock.balanceOf(eve.address)),
+        "0.01"
       );
     });
 
     it("Charlie quitlocks after ~ 9 months", async () => {
-      await increaseTime(ONE_WEEK.mul(21));
+      // Charlie would have ~66 weeks left
+      const lockEndCharlie = await ve.lockEnd(charlie.address);
+      await increaseTimeTo(lockEndCharlie.sub(WEEK * 66));
+
+      const penaltyRateCharlie = await ve.getPenaltyRate(lockEndCharlie);
+      const expectedPenaltyCharlie = penaltyRateCharlie
+        .mul(lockAmount)
+        .div(PRECISION);
+
       await ve.connect(charlie).quitLock();
-      // Charlie would have ~14 weeks left
+
       assertBNClosePercent(
-        await fdtMock.balanceOf(charlie.address),
-        initialFDTuserBal.sub(lockAmount.mul(ONE_WEEK.mul(14)).div(MAXTIME)),
-        "0.5"
+        expectedPenaltyCharlie,
+        lockAmount.mul(WEEK * 66).div(MAXTIME),
+        "0.01"
+      );
+
+      // Validate remaining balance
+      assertBNClosePercent(
+        expectedPenaltyCharlie,
+        initialFDTuserBal.sub(await fdtMock.balanceOf(charlie.address)),
+        "0.01"
+      );
+    });
+
+    it("Francis quitlocks 1 week before end", async () => {
+      // Francis would have ~1 week left
+      const lockEndFrancis = await ve.lockEnd(francis.address);
+      await increaseTimeTo(lockEndFrancis.sub(WEEK * 1));
+
+      const penaltyRateFrancis = await ve.getPenaltyRate(lockEndFrancis);
+      const expectedPenaltyFrancis = penaltyRateFrancis
+        .mul(lockAmount)
+        .div(PRECISION);
+
+      await ve.connect(francis).quitLock();
+
+      assertBNClosePercent(
+        expectedPenaltyFrancis,
+        lockAmount.mul(WEEK * 1).div(MAXTIME),
+        "0.01"
+      );
+
+      // Validate remaining balance
+      assertBNClosePercent(
+        expectedPenaltyFrancis,
+        initialFDTuserBal.sub(await fdtMock.balanceOf(francis.address)),
+        "0.01"
       );
     });
 

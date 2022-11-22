@@ -25,7 +25,7 @@ npm run test
 **Note:** We use hardhat and Alchemy web3 provider in order to test against Ethereum mainnet state. Make sure to configure an Alchemy API endpoint with a valid key before running the `test` script:
 
 ```bash
-export ALCHEMY_MAINNET_API_KEY=[ALCHEMY_KEY]
+export ALCHEMY_API_KEY=[ALCHEMY_KEY]
 ```
 
 ## Voting-escrow math

@@ -42,7 +42,7 @@ let david: SignerWithAddress;
 let eve: SignerWithAddress;
 let treasury: SignerWithAddress;
 //let nexus: Nexus
-let fdtMock: MockERC20;
+let govMock: MockERC20;
 async function latestBlockBN() {
   return (await ethers.provider.getBlock("latest")).number;
 }
@@ -77,22 +77,22 @@ describe("Gas usage tests", () => {
 
   const deployFresh = async (initialRewardFunding = BN.from(0)) => {
     //  nexus = await new Nexus__factory(defaultUser).deploy(sa.governor.address)
-    const fdtMockDeployer = await ethers.getContractFactory("MockERC20", admin);
+    const govMockDeployer = await ethers.getContractFactory("MockERC20", admin);
 
-    fdtMock = await fdtMockDeployer.deploy("FiatDAO", "FDT", admin.address);
+    govMock = await govMockDeployer.deploy("FiatDAO", "Token", admin.address);
     // mta = await new MintableToken__factory(defaultUser).deploy(nexus.address, sa.fundManager.address)
-    await fdtMock.mint(
+    await govMock.mint(
       fundManager.address,
       ethers.utils.parseEther("1000000000000")
     );
 
-    await fdtMock
+    await govMock
       .connect(fundManager)
       .transfer(
         defaultUser.address,
         simpleToExactAmount(1000, DEFAULT_DECIMALS)
       );
-    await fdtMock
+    await govMock
       .connect(fundManager)
       .transfer(other.address, simpleToExactAmount(1000, DEFAULT_DECIMALS));
 
@@ -103,7 +103,7 @@ describe("Gas usage tests", () => {
     votingLockup = await votingEscrowDeployer.deploy(
       admin.address,
       treasury.address,
-      fdtMock.address,
+      govMock.address,
       "veToken",
       "veToken"
     );
@@ -120,17 +120,17 @@ describe("Gas usage tests", () => {
 
     //add Blocklist address to VotingEscrow
     await votingLockup.updateBlocklist(blocklist.address);
-    await fdtMock.approve(
+    await govMock.approve(
       votingLockup.address,
       simpleToExactAmount(100, DEFAULT_DECIMALS)
     );
-    await fdtMock
+    await govMock
       .connect(other)
       .approve(
         votingLockup.address,
         simpleToExactAmount(100, DEFAULT_DECIMALS)
       );
-    await fdtMock
+    await govMock
       .connect(fundManager)
       .approve(
         votingLockup.address,
@@ -190,8 +190,8 @@ describe("Gas usage tests", () => {
         ts: lastPoint[2],
         blk: lastPoint[3],
       },
-      senderStakingTokenBalance: await fdtMock.balanceOf(sender.address),
-      contractStakingTokenBalance: await fdtMock.balanceOf(
+      senderStakingTokenBalance: await govMock.balanceOf(sender.address),
+      contractStakingTokenBalance: await govMock.balanceOf(
         votingLockup.address
       ),
       votingPower: await votingLockup.balanceOf(sender.address),
@@ -208,34 +208,34 @@ describe("Gas usage tests", () => {
 
       await deployFresh(simpleToExactAmount(100, DEFAULT_DECIMALS));
       maxTime = await votingLockup.MAXTIME();
-      await fdtMock
+      await govMock
         .connect(fundManager)
         .transfer(alice.address, simpleToExactAmount(1, 22));
-      await fdtMock
+      await govMock
         .connect(fundManager)
         .transfer(bob.address, simpleToExactAmount(1, 22));
-      await fdtMock
+      await govMock
         .connect(fundManager)
         .transfer(charlie.address, simpleToExactAmount(1, 22));
-      await fdtMock
+      await govMock
         .connect(fundManager)
         .transfer(david.address, simpleToExactAmount(1, 22));
-      await fdtMock
+      await govMock
         .connect(fundManager)
         .transfer(eve.address, simpleToExactAmount(1, 22));
-      await fdtMock
+      await govMock
         .connect(alice)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
-      await fdtMock
+      await govMock
         .connect(bob)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
-      await fdtMock
+      await govMock
         .connect(charlie)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
-      await fdtMock
+      await govMock
         .connect(david)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
-      await fdtMock
+      await govMock
         .connect(eve)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
     });

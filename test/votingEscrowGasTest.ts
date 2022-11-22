@@ -104,8 +104,8 @@ describe("Gas usage tests", () => {
       admin.address,
       treasury.address,
       fdtMock.address,
-      "veFDT",
-      "veFDT"
+      "veToken",
+      "veToken"
     );
     // Deploy Blocklist
     const blocklistDeployer = await ethers.getContractFactory(

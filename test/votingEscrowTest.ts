@@ -29,8 +29,8 @@ describe("VotingEscrow Tests", function () {
   let admin: SignerWithAddress;
   let treasury: SignerWithAddress;
   const maxPenalty = utils.parseEther("1");
-  const name = "veFDT";
-  const symbol = "veFDT";
+  const name = "veToken";
+  const symbol = "veToken";
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
   let charlie: SignerWithAddress;
@@ -79,8 +79,8 @@ describe("VotingEscrow Tests", function () {
       admin.address,
       treasury.address,
       fdtMock.address,
-      "veFDT",
-      "veFDT"
+      "veToken",
+      "veToken"
     );
 
     // Deploy Blocklist

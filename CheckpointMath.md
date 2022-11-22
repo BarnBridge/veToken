@@ -1,4 +1,4 @@
-# veFDT Checkpoint Math
+# veToken Checkpoint Math
 
 ## Definitions
 

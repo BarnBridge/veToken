@@ -115,8 +115,8 @@ describe("VotingEscrow Math test", () => {
       admin.address,
       treasury.address,
       fdtMock.address,
-      "veFDT",
-      "veFDT"
+      "veToken",
+      "veToken"
     );
     // Deploy Blocklist
     const blocklistDeployer = await ethers.getContractFactory(
@@ -324,8 +324,8 @@ describe("VotingEscrow Math test", () => {
         const symbol = await votingLockup.symbol();
         const decimals = await votingLockup.decimals();
         const supply = await votingLockup.totalSupply();
-        expect(name).eq("veFDT");
-        expect(symbol).eq("veFDT");
+        expect(name).eq("veToken");
+        expect(symbol).eq("veToken");
         expect(decimals).eq(BN.from(DEFAULT_DECIMALS));
         expect(supply).eq(BN.from(0));
       });

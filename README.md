@@ -10,6 +10,12 @@ A non-expired lock may be quitted by the lock owner anytime. The lock cannot be 
 **Optimistic SmartWallet approval**
 *SmartWallets* (i.e. contracts) can create a lock without being approved first. However, the veToken owner maintains a Blocklist where SmartWallets may be blocked from further interacting with the system. The Blocklist only allows the owner to block contracts but not EOAs. Blocked SmartWallets may still undelegate (if delegated prior to the blocking) and quit their lock (by paying the penalty) or withdraw once the lock expired.
 
+## :warning: Requirements
+This contract has been designed for a specific `Token` and is not safe for using with other tokens. Specifically, the following is a non-exhaustive list of unsafe usages:
+- Contract does not support `Token` with maxSupply>2^128-10^[decimals]
+- Contract does not support fee-on-transfer `Token`
+- Contract does not support `Token` with decimals<6
+
 ## 🏄 Quickstart
 
 ```bash
@@ -28,9 +34,9 @@ npm run test
 export ALCHEMY_API_KEY=[ALCHEMY_KEY]
 ```
 
-## Voting-escrow math
+## :heavy_division_sign: Voting-escrow math
 The veToken contract implements the same checkpoint mathematics than the original Curve VotingEscrow.vy contract. The new features leverage this math in order to void or redirect (i.e. delegate) a lock's virtual balance. More details about how the various lock operations interact with Curve's checkpoint math can be found [here](./CheckpointMath.md).
 
-## Source
+## :information_source: Source
 - Curve Finance: Original concept and implementation in Vyper ([Source](https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy))
 - mStable: Forking Curve's Vyper contract and porting to Solidity including math tests ([Source](https://github.com/mstable/mStable-contracts/blob/master/contracts/governance/IncentivisedVotingLockup.sol)) 

@@ -6,10 +6,10 @@ import { IVotingEscrow } from "../interfaces/IVotingEscrow.sol";
 import { MockERC20 } from "./MockERC20.sol";
 
 contract MockSmartWallet {
-    IERC20 public fdt;
+    IERC20 public token;
 
-    constructor(IERC20 _fdt) {
-        fdt = _fdt;
+    constructor(IERC20 _token) {
+        token = _token;
     }
 
     function createLock(
@@ -17,12 +17,12 @@ contract MockSmartWallet {
         uint256 amount,
         uint256 end
     ) external {
-        fdt.approve(ve, amount);
+        token.approve(ve, amount);
         IVotingEscrow(ve).createLock(amount, end);
     }
 
     function increaseAmount(address ve, uint256 amount) external {
-        fdt.approve(ve, amount);
+        token.approve(ve, amount);
         IVotingEscrow(ve).increaseAmount(amount);
     }
 

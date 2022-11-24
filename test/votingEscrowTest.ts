@@ -22,22 +22,22 @@ const { provider } = waffle;
 describe("VotingEscrow Tests", function () {
   let ve: VotingEscrow;
   let blocklist: Blocklist;
-  let fdtMock: MockERC20;
+  let govMock: MockERC20;
   let contract: MockSmartWallet;
   let contract2: MockSmartWallet; // ADD TEST FOR 0 BALANCES
   let contract3: MockSmartWallet;
   let admin: SignerWithAddress;
   let treasury: SignerWithAddress;
   const maxPenalty = utils.parseEther("1");
-  const name = "veFDT";
-  const symbol = "veFDT";
+  const name = "veToken";
+  const symbol = "veToken";
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
   let charlie: SignerWithAddress;
   let david: SignerWithAddress;
   let eve: SignerWithAddress;
   let francis: SignerWithAddress;
-  const initialFDTuserBal = utils.parseEther("1000");
+  const initialGovUserBal = utils.parseEther("1000");
   const lockAmount = utils.parseEther("100");
   let tx;
   const MAX = ethers.constants.MaxUint256;
@@ -61,26 +61,26 @@ describe("VotingEscrow Tests", function () {
     signers = await ethers.getSigners();
     [admin, alice, bob, charlie, david, eve, francis, treasury] = signers;
 
-    // Deploy FDT contract
-    const fdtMockDeployer = await ethers.getContractFactory("MockERC20", admin);
-    fdtMock = await fdtMockDeployer.deploy("FiatDAO", "FDT", admin.address);
+    // Deploy Governance Token contract
+    const govMockDeployer = await ethers.getContractFactory("MockERC20", admin);
+    govMock = await govMockDeployer.deploy("FiatDAO", "Token", admin.address);
 
-    // mint FDT tokens
-    await fdtMock.mint(alice.address, initialFDTuserBal);
-    await fdtMock.mint(bob.address, initialFDTuserBal);
-    await fdtMock.mint(charlie.address, initialFDTuserBal);
-    await fdtMock.mint(david.address, initialFDTuserBal);
-    await fdtMock.mint(eve.address, initialFDTuserBal);
-    await fdtMock.mint(francis.address, initialFDTuserBal);
+    // mint gov tokens
+    await govMock.mint(alice.address, initialGovUserBal);
+    await govMock.mint(bob.address, initialGovUserBal);
+    await govMock.mint(charlie.address, initialGovUserBal);
+    await govMock.mint(david.address, initialGovUserBal);
+    await govMock.mint(eve.address, initialGovUserBal);
+    await govMock.mint(francis.address, initialGovUserBal);
 
     // Deploy VE contract
     const veDeployer = await ethers.getContractFactory("VotingEscrow", admin);
     ve = await veDeployer.deploy(
       admin.address,
       treasury.address,
-      fdtMock.address,
-      "veFDT",
-      "veFDT"
+      govMock.address,
+      "veToken",
+      "veToken"
     );
 
     // Deploy Blocklist
@@ -93,27 +93,27 @@ describe("VotingEscrow Tests", function () {
 
     //add Blocklist address to VotingEscrow
     await ve.updateBlocklist(blocklist.address);
-    // approve VE contract on FDT
-    await fdtMock.setAllowance(alice.address, ve.address, MAX);
-    await fdtMock.setAllowance(bob.address, ve.address, MAX);
-    await fdtMock.setAllowance(charlie.address, ve.address, MAX);
-    await fdtMock.setAllowance(david.address, ve.address, MAX);
-    await fdtMock.setAllowance(eve.address, ve.address, MAX);
-    await fdtMock.setAllowance(francis.address, ve.address, MAX);
+    // approve VE contract on gov token
+    await govMock.setAllowance(alice.address, ve.address, MAX);
+    await govMock.setAllowance(bob.address, ve.address, MAX);
+    await govMock.setAllowance(charlie.address, ve.address, MAX);
+    await govMock.setAllowance(david.address, ve.address, MAX);
+    await govMock.setAllowance(eve.address, ve.address, MAX);
+    await govMock.setAllowance(francis.address, ve.address, MAX);
 
     // Deploy malicious contracts
     const contractDeployer = await ethers.getContractFactory(
       "MockSmartWallet",
       admin
     );
-    contract = await contractDeployer.deploy(fdtMock.address);
-    await fdtMock.mint(contract.address, initialFDTuserBal);
+    contract = await contractDeployer.deploy(govMock.address);
+    await govMock.mint(contract.address, initialGovUserBal);
 
-    contract2 = await contractDeployer.deploy(fdtMock.address);
-    await fdtMock.mint(contract2.address, initialFDTuserBal);
+    contract2 = await contractDeployer.deploy(govMock.address);
+    await govMock.mint(contract2.address, initialGovUserBal);
 
-    contract3 = await contractDeployer.deploy(fdtMock.address);
-    await fdtMock.mint(contract3.address, initialFDTuserBal);
+    contract3 = await contractDeployer.deploy(govMock.address);
+    await govMock.mint(contract3.address, initialGovUserBal);
   });
   after(async () => {
     await restoreSnapshot(provider);
@@ -135,11 +135,11 @@ describe("VotingEscrow Tests", function () {
 
       expect(await ve.maxPenalty()).to.equal(maxPenalty);
 
-      expect(await fdtMock.balanceOf(alice.address)).to.equal(
-        initialFDTuserBal
+      expect(await govMock.balanceOf(alice.address)).to.equal(
+        initialGovUserBal
       );
 
-      expect(await fdtMock.balanceOf(bob.address)).to.equal(initialFDTuserBal);
+      expect(await govMock.balanceOf(bob.address)).to.equal(initialGovUserBal);
     });
   });
 
@@ -173,7 +173,7 @@ describe("VotingEscrow Tests", function () {
   });
 
   describe("EOA flow", async () => {
-    it("Alice and Bob lock FDT in ve", async () => {
+    it("Alice and Bob lock tokens in ve", async () => {
       await createSnapshot(provider);
       const lockTime = 4 * WEEK + (await getTimestamp());
 
@@ -212,7 +212,7 @@ describe("VotingEscrow Tests", function () {
       // Validate remaining balance
       assertBNClosePercent(
         expectedPenalty,
-        initialFDTuserBal.sub(await fdtMock.balanceOf(alice.address)),
+        initialGovUserBal.sub(await govMock.balanceOf(alice.address)),
         "0.01"
       );
     });
@@ -227,7 +227,7 @@ describe("VotingEscrow Tests", function () {
 
       expect(await ve.penaltyAccumulated()).to.equal(0);
 
-      expect(await fdtMock.balanceOf(treasury.address)).to.equal(
+      expect(await govMock.balanceOf(treasury.address)).to.equal(
         penaltyAccumulated
       );
     });
@@ -255,13 +255,13 @@ describe("VotingEscrow Tests", function () {
     it("Alice and Bob attempt to quit lock, succeeds without penalty", async () => {
       await ve.connect(alice).quitLock();
       assertBNClosePercent(
-        await fdtMock.balanceOf(alice.address),
-        initialFDTuserBal.sub(lockAmount.mul(2).div(MAXTIME)),
+        await govMock.balanceOf(alice.address),
+        initialGovUserBal.sub(lockAmount.mul(2).div(MAXTIME)),
         "0.4"
       );
 
       await ve.connect(bob).quitLock();
-      expect(await fdtMock.balanceOf(bob.address)).to.equal(initialFDTuserBal); // because bob did not quit lock previously but deposited twice
+      expect(await govMock.balanceOf(bob.address)).to.equal(initialGovUserBal); // because bob did not quit lock previously but deposited twice
 
       expect(await ve.penaltyAccumulated()).to.equal(0);
 
@@ -270,7 +270,7 @@ describe("VotingEscrow Tests", function () {
   });
 
   describe("Malicious contracts flow", async () => {
-    it("2 contracts lock FDT in ve", async () => {
+    it("2 contracts lock tokens in ve", async () => {
       await createSnapshot(provider);
 
       const lockTime = 4 * WEEK + (await getTimestamp());
@@ -293,22 +293,22 @@ describe("VotingEscrow Tests", function () {
     it("Blocklisted contract CANNOT increase amount of tokens", async () => {
       // = await Deployer.deploy(ve.address);
       await blocklist.blockContract(contract.address);
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
 
       await expect(
         contract.increaseAmount(ve.address, lockAmount)
       ).to.be.revertedWith("Blocked contract");
 
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
     });
 
     it("Blocklisted contract CANNOT increase locked time", async () => {
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
 
       await expect(
@@ -318,26 +318,26 @@ describe("VotingEscrow Tests", function () {
         )
       ).to.be.revertedWith("Blocked contract");
 
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
     });
 
     it("Blocklisted contract can quit lock", async () => {
       await increaseTime(ONE_WEEK);
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
 
       await contract.quitLock(ve.address);
 
       assertBNClosePercent(
-        await fdtMock.balanceOf(contract.address),
-        initialFDTuserBal.sub(lockAmount.mul(2 * WEEK).div(MAXTIME)),
+        await govMock.balanceOf(contract.address),
+        initialGovUserBal.sub(lockAmount.mul(2 * WEEK).div(MAXTIME)),
         "0.5"
       );
-      // expect(await fdtMock.balanceOf(contract.address)).to.equal(
-      //   initialFDTuserBal.sub(lockAmount.div(2))
+      // expect(await govMock.balanceOf(contract.address)).to.equal(
+      //   initialGovUserBal.sub(lockAmount.div(2))
       // );
     });
 
@@ -350,8 +350,8 @@ describe("VotingEscrow Tests", function () {
     it("Allowed contract can quit lock without penalty", async () => {
       // not blocklisted contract
       await contract2.quitLock(ve.address);
-      expect(await fdtMock.balanceOf(contract2.address)).to.equal(
-        initialFDTuserBal
+      expect(await govMock.balanceOf(contract2.address)).to.equal(
+        initialGovUserBal
       );
 
       await restoreSnapshot(provider);
@@ -359,7 +359,7 @@ describe("VotingEscrow Tests", function () {
   });
 
   describe("Blocked contracts undelegation", async () => {
-    it("2contracts lock FDT in ve", async () => {
+    it("2contracts lock tokens in ve", async () => {
       await createSnapshot(provider);
 
       const lockTime = 4 * WEEK + (await getTimestamp());
@@ -430,22 +430,22 @@ describe("VotingEscrow Tests", function () {
     });
 
     it("Blocklisted contract CANNOT increase amount of tokens", async () => {
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
 
       await expect(
         contract.increaseAmount(ve.address, lockAmount)
       ).to.be.revertedWith("Blocked contract");
 
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
     });
 
     it("Blocklisted contract CANNOT increase locked time", async () => {
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
 
       await expect(
@@ -455,22 +455,22 @@ describe("VotingEscrow Tests", function () {
         )
       ).to.be.revertedWith("Blocked contract");
 
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
     });
 
     it("Blocklisted contract can quit lock", async () => {
       await increaseTime(ONE_WEEK);
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
 
       await contract.quitLock(ve.address);
 
       assertBNClosePercent(
-        await fdtMock.balanceOf(contract.address),
-        initialFDTuserBal.sub(lockAmount.mul(2 * WEEK).div(MAXTIME)),
+        await govMock.balanceOf(contract.address),
+        initialGovUserBal.sub(lockAmount.mul(2 * WEEK).div(MAXTIME)),
         "0.5"
       );
     });
@@ -597,8 +597,8 @@ describe("VotingEscrow Tests", function () {
     it("Alice's lock is not delegated, Alice can quit", async () => {
       // pre quit
       let block = await getBlock();
-      expect(await fdtMock.balanceOf(alice.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(alice.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
       expect(await ve.balanceOfAt(alice.address, block)).to.above(0);
       expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
@@ -611,8 +611,8 @@ describe("VotingEscrow Tests", function () {
       block = await getBlock();
 
       assertBNClosePercent(
-        await fdtMock.balanceOf(alice.address),
-        initialFDTuserBal.sub(lockAmount.mul(7 * WEEK).div(MAXTIME)),
+        await govMock.balanceOf(alice.address),
+        initialGovUserBal.sub(lockAmount.mul(7 * WEEK).div(MAXTIME)),
         "0.5"
       );
       expect(await ve.balanceOfAt(alice.address, block)).to.equal(0);
@@ -623,8 +623,8 @@ describe("VotingEscrow Tests", function () {
     it("Bob's lock is delegated, Bob cannot quit", async () => {
       // pre quit
       let block = await getBlock();
-      expect(await fdtMock.balanceOf(bob.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(bob.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
       expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
 
@@ -634,8 +634,8 @@ describe("VotingEscrow Tests", function () {
 
       // post quit
       block = await getBlock();
-      expect(await fdtMock.balanceOf(bob.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(bob.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
       expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
     });
@@ -664,8 +664,8 @@ describe("VotingEscrow Tests", function () {
     it("Bob's lock is not delegated, Bob can quit", async () => {
       // pre quit
       let block = await getBlock();
-      expect(await fdtMock.balanceOf(bob.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(bob.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
       expect(await ve.balanceOfAt(bob.address, block)).to.above(0);
 
@@ -675,8 +675,8 @@ describe("VotingEscrow Tests", function () {
       // post quit
       block = await getBlock();
       assertBNClosePercent(
-        await fdtMock.balanceOf(bob.address),
-        initialFDTuserBal.sub(lockAmount.mul(6 * WEEK).div(MAXTIME)),
+        await govMock.balanceOf(bob.address),
+        initialGovUserBal.sub(lockAmount.mul(6 * WEEK).div(MAXTIME)),
         "0.5"
       );
       expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
@@ -690,8 +690,8 @@ describe("VotingEscrow Tests", function () {
       // pre delegation
       const block = await getBlock();
       assertBNClosePercent(
-        await fdtMock.balanceOf(bob.address),
-        initialFDTuserBal.sub(lockAmount.mul(7 * WEEK).div(MAXTIME)),
+        await govMock.balanceOf(bob.address),
+        initialGovUserBal.sub(lockAmount.mul(7 * WEEK).div(MAXTIME)),
         "0.5"
       );
       expect(await ve.balanceOfAt(bob.address, block)).to.equal(0);
@@ -711,8 +711,8 @@ describe("VotingEscrow Tests", function () {
       // post delegation
       block = await getBlock();
       assertBNClosePercent(
-        await fdtMock.balanceOf(bob.address),
-        initialFDTuserBal
+        await govMock.balanceOf(bob.address),
+        initialGovUserBal
           .sub(lockAmount.mul(7 * WEEK).div(MAXTIME))
           .sub(lockAmount),
         "0.5"
@@ -729,8 +729,8 @@ describe("VotingEscrow Tests", function () {
     it("Contract's lock is not delegated, contract can quit and but lose delegated balance", async () => {
       // pre quit
       let block = await getBlock();
-      expect(await fdtMock.balanceOf(contract.address)).to.equal(
-        initialFDTuserBal.sub(lockAmount)
+      expect(await govMock.balanceOf(contract.address)).to.equal(
+        initialGovUserBal.sub(lockAmount)
       );
       const preBalance = await ve.balanceOfAt(contract.address, block);
       expect(preBalance).to.above(0);
@@ -743,8 +743,8 @@ describe("VotingEscrow Tests", function () {
 
       // Contract locked for 30 weeks, then we advanced 8 weeks
       assertBNClosePercent(
-        await fdtMock.balanceOf(contract.address),
-        initialFDTuserBal.sub(lockAmount.mul(21 * WEEK).div(MAXTIME)),
+        await govMock.balanceOf(contract.address),
+        initialGovUserBal.sub(lockAmount.mul(21 * WEEK).div(MAXTIME)),
         "0.5"
       );
       const postBalance = await ve.balanceOfAt(contract.address, block);
@@ -772,7 +772,7 @@ describe("VotingEscrow Tests", function () {
   });
 
   describe("Quitlock flow", async () => {
-    it("Alice, Bob, Charlie, David and Eve lock FDT in ve", async () => {
+    it("Alice, Bob, Charlie, David and Eve lock tokens in ve", async () => {
       await createSnapshot(provider);
       // MAXTIME => 2 years
       const lockTime1 = MAXTIME + (await getTimestamp());
@@ -807,7 +807,7 @@ describe("VotingEscrow Tests", function () {
       // Validate remaining balance
       assertBNClosePercent(
         expectedPenalty,
-        initialFDTuserBal.sub(await fdtMock.balanceOf(alice.address)),
+        initialGovUserBal.sub(await govMock.balanceOf(alice.address)),
         "0.01"
       );
 
@@ -827,7 +827,7 @@ describe("VotingEscrow Tests", function () {
       // Validate remaining balance
       assertBNClosePercent(
         expectedPenaltyDavid,
-        initialFDTuserBal.sub(await fdtMock.balanceOf(david.address)),
+        initialGovUserBal.sub(await govMock.balanceOf(david.address)),
         "0.01"
       );
     });
@@ -851,7 +851,7 @@ describe("VotingEscrow Tests", function () {
       // Validate remaining balance
       assertBNClosePercent(
         expectedPenaltyBob,
-        initialFDTuserBal.sub(await fdtMock.balanceOf(bob.address)),
+        initialGovUserBal.sub(await govMock.balanceOf(bob.address)),
         "0.01"
       );
 
@@ -869,7 +869,7 @@ describe("VotingEscrow Tests", function () {
       // Validate remaining balance
       assertBNClosePercent(
         expectedPenaltyEve,
-        initialFDTuserBal.sub(await fdtMock.balanceOf(eve.address)),
+        initialGovUserBal.sub(await govMock.balanceOf(eve.address)),
         "0.01"
       );
     });
@@ -895,7 +895,7 @@ describe("VotingEscrow Tests", function () {
       // Validate remaining balance
       assertBNClosePercent(
         expectedPenaltyCharlie,
-        initialFDTuserBal.sub(await fdtMock.balanceOf(charlie.address)),
+        initialGovUserBal.sub(await govMock.balanceOf(charlie.address)),
         "0.01"
       );
     });
@@ -921,19 +921,19 @@ describe("VotingEscrow Tests", function () {
       // Validate remaining balance
       assertBNClosePercent(
         expectedPenaltyFrancis,
-        initialFDTuserBal.sub(await fdtMock.balanceOf(francis.address)),
+        initialGovUserBal.sub(await govMock.balanceOf(francis.address)),
         "0.01"
       );
     });
 
     it("Alice locks again, then penalty is taken away,she withdraws without penalty", async () => {
-      const aliceBalBefore = await fdtMock.balanceOf(alice.address);
+      const aliceBalBefore = await govMock.balanceOf(alice.address);
       await ve
         .connect(alice)
         .createLock(lockAmount, (await getTimestamp()) + MAXTIME);
       await ve.unlock();
       await ve.connect(alice).quitLock();
-      expect(await fdtMock.balanceOf(alice.address)).to.equal(aliceBalBefore);
+      expect(await govMock.balanceOf(alice.address)).to.equal(aliceBalBefore);
     });
   });
 });
